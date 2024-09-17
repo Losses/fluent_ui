@@ -137,6 +137,9 @@ class AutoSuggestBox<T> extends StatefulWidget {
     this.enabled = true,
     this.inputFormatters,
     this.maxPopupHeight = kAutoSuggestBoxPopupMaxHeight,
+    this.containerWrapper = ContainerWrapper.row,
+    this.containerMainAxisAlignment = MainAxisAlignment.start,
+    this.containerCrossAxisAlignment = CrossAxisAlignment.start,
   })  : autovalidateMode = AutovalidateMode.disabled,
         validator = null;
 
@@ -179,6 +182,9 @@ class AutoSuggestBox<T> extends StatefulWidget {
     this.enabled = true,
     this.inputFormatters,
     this.maxPopupHeight = kAutoSuggestBoxPopupMaxHeight,
+    this.containerWrapper = ContainerWrapper.row,
+    this.containerMainAxisAlignment = MainAxisAlignment.start,
+    this.containerCrossAxisAlignment = CrossAxisAlignment.start,
   });
 
   /// The list of items to display to the user to pick
@@ -349,6 +355,10 @@ class AutoSuggestBox<T> extends StatefulWidget {
   /// by default, it's limited to a 380px height. If the value provided is greater
   /// than the available space, the box is limited to the available space.
   final double maxPopupHeight;
+
+  final ContainerWrapper containerWrapper;
+  final MainAxisAlignment containerMainAxisAlignment;
+  final CrossAxisAlignment containerCrossAxisAlignment;
 
   @override
   State<AutoSuggestBox<T>> createState() => AutoSuggestBoxState<T>();
@@ -798,6 +808,9 @@ class AutoSuggestBoxState<T> extends State<AutoSuggestBox<T>> {
             keyboardAppearance: widget.keyboardAppearance,
             enabled: widget.enabled,
             inputFormatters: widget.inputFormatters,
+            containerWrapper: widget.containerWrapper,
+            containerMainAxisAlignment: widget.containerMainAxisAlignment,
+            containerCrossAxisAlignment: widget.containerCrossAxisAlignment,
           );
         }),
       ),
