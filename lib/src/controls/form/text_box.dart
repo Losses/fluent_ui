@@ -35,6 +35,7 @@ enum OverlayVisibilityMode {
 
 enum ContainerWrapper {
   row,
+  column,
   wrap,
 }
 
@@ -211,7 +212,6 @@ class TextBox extends StatefulWidget {
     this.spellCheckConfiguration,
     this.magnifierConfiguration,
     this.containerWrapper = ContainerWrapper.row,
-    this.wrappedBodyConstraints,
   })  : assert(obscuringCharacter.length == 1),
         smartDashesType = smartDashesType ??
             (obscureText ? SmartDashesType.disabled : SmartDashesType.enabled),
@@ -525,8 +525,6 @@ class TextBox extends StatefulWidget {
   final bool enableIMEPersonalizedLearning;
 
   final ContainerWrapper containerWrapper;
-
-  final BoxConstraints? wrappedBodyConstraints;
 
   /// {@macro flutter.widgets.EditableText.contextMenuBuilder}
   ///
@@ -929,11 +927,12 @@ class _TextBoxState extends State<TextBox>
           ],
         );
 
-        final wrappedBody = widget.containerWrapper == ContainerWrapper.row
+        final wrappedBody = widget.containerWrapper == ContainerWrapper.row ||
+                widget.containerWrapper == ContainerWrapper.column
             ? Expanded(
                 child: body,
               )
-            : Container(constraints: widget.wrappedBodyConstraints, child: body);
+            : body;
 
         final children = <Widget>[
           // Insert a prefix at the front if the prefix visibility mode matches
@@ -955,6 +954,10 @@ class _TextBoxState extends State<TextBox>
 
         if (widget.containerWrapper == ContainerWrapper.row) {
           return Row(
+            children: children,
+          );
+        } else if (widget.containerWrapper == ContainerWrapper.column) {
+          return Column(
             children: children,
           );
         }
