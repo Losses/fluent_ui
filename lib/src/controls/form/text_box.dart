@@ -915,8 +915,7 @@ class _TextBoxState extends State<TextBox>
           ],
         );
 
-        final wrappedBody = widget.containerWrapper == ContainerWrapper.row ||
-                widget.containerWrapper == ContainerWrapper.column
+        final wrappedBody = widget.containerWrapper == ContainerWrapper.row
             ? Expanded(child: body)
             : body;
 
