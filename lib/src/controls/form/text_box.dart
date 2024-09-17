@@ -211,7 +211,7 @@ class TextBox extends StatefulWidget {
     this.spellCheckConfiguration,
     this.magnifierConfiguration,
     this.containerWrapper = ContainerWrapper.row,
-    this.minimumInputWidth = 0.0,
+    this.wrappedBodyConstraints,
   })  : assert(obscuringCharacter.length == 1),
         smartDashesType = smartDashesType ??
             (obscureText ? SmartDashesType.disabled : SmartDashesType.enabled),
@@ -526,7 +526,7 @@ class TextBox extends StatefulWidget {
 
   final ContainerWrapper containerWrapper;
 
-  final double minimumInputWidth;
+  final BoxConstraints? wrappedBodyConstraints;
 
   /// {@macro flutter.widgets.EditableText.contextMenuBuilder}
   ///
@@ -933,18 +933,16 @@ class _TextBoxState extends State<TextBox>
             ? Expanded(
                 child: body,
               )
-            : Container(
-                constraints: BoxConstraints(minWidth: widget.minimumInputWidth),
-                child: body);
+            : Container(constraints: widget.wrappedBodyConstraints, child: body);
 
         final children = <Widget>[
           // Insert a prefix at the front if the prefix visibility mode matches
           // the current text state.
-            if (_showPrefixWidget(text!))
-              if (widget.prefix is ExpandedPrefix)
-                ...(widget.prefix as ExpandedPrefix).children ?? []
-              else
-                widget.prefix!,
+          if (_showPrefixWidget(text!))
+            if (widget.prefix is ExpandedPrefix)
+              ...(widget.prefix as ExpandedPrefix).children ?? []
+            else
+              widget.prefix!,
           // In the middle part, stack the placeholder on top of the main EditableText
           // if needed.
           wrappedBody,
