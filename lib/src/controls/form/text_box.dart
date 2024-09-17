@@ -932,9 +932,7 @@ class _TextBoxState extends State<TextBox>
           if (_showPrefixWidget(text!)) widget.prefix!,
           // In the middle part, stack the placeholder on top of the main EditableText
           // if needed.
-          Expanded(
-            child: wrappedBody,
-          ),
+          wrappedBody,
           // First add the explicit suffix if the suffix visibility mode matches.
           if (_showSuffixWidget(text)) ...[
             widget.suffix!,
