@@ -199,9 +199,7 @@ class TextBox extends StatefulWidget {
     this.contextMenuBuilder = _defaultContextMenuBuilder,
     this.spellCheckConfiguration,
     this.magnifierConfiguration,
-    this.containerWrapper = ContainerWrapper.row,
-    this.containerMainAxisAlignment = MainAxisAlignment.start,
-    this.containerCrossAxisAlignment = CrossAxisAlignment.start,
+    this.decorationBuilder,
   })  : assert(obscuringCharacter.length == 1),
         smartDashesType = smartDashesType ??
             (obscureText ? SmartDashesType.disabled : SmartDashesType.enabled),
@@ -514,9 +512,9 @@ class TextBox extends StatefulWidget {
   /// {@macro flutter.services.TextInputConfiguration.enableIMEPersonalizedLearning}
   final bool enableIMEPersonalizedLearning;
 
-  final ContainerWrapper containerWrapper;
-  final MainAxisAlignment containerMainAxisAlignment;
-  final CrossAxisAlignment containerCrossAxisAlignment;
+  final Widget Function(
+          BuildContext context, Widget body, Widget? prefix, Widget? suffix)?
+      decorationBuilder;
 
   /// {@macro flutter.widgets.EditableText.contextMenuBuilder}
   ///
@@ -872,7 +870,8 @@ class _TextBoxState extends State<TextBox>
   bool get _hasDecoration {
     return widget.placeholder != null ||
         widget.prefix != null ||
-        widget.suffix != null;
+        widget.suffix != null ||
+        widget.decorationBuilder != null;
   }
 
   // Provide default behavior if widget.textAlignVertical is not set.
@@ -919,37 +918,29 @@ class _TextBoxState extends State<TextBox>
           ],
         );
 
-        final wrappedBody = widget.containerWrapper == ContainerWrapper.row
-            ? Expanded(child: body)
-            : body;
-
-        final children = <Widget>[
-          // Insert a prefix at the front if the prefix visibility mode matches
-          // the current text state.
-          if (_showPrefixWidget(text!)) widget.prefix!,
-          // In the middle part, stack the placeholder on top of the main EditableText
-          // if needed.
-          wrappedBody,
-          // First add the explicit suffix if the suffix visibility mode matches.
-          if (_showSuffixWidget(text)) ...[
-            widget.suffix!,
-            const SizedBox(width: 4.0),
-          ]
-        ];
-
-        if (widget.containerWrapper == ContainerWrapper.row) {
-          return Row(
-              mainAxisAlignment: widget.containerMainAxisAlignment,
-              crossAxisAlignment: widget.containerCrossAxisAlignment,
-              children: children);
-        } else if (widget.containerWrapper == ContainerWrapper.column) {
-          return Column(
-              mainAxisAlignment: widget.containerMainAxisAlignment,
-              crossAxisAlignment: widget.containerCrossAxisAlignment,
-              children: children);
+        if (widget.decorationBuilder != null) {
+          return widget.decorationBuilder!(
+              context,
+              body,
+              _showPrefixWidget(text!) ? widget.prefix! : null,
+              _showSuffixWidget(text) ? widget.suffix! : null);
         }
 
-        return Row(children: children);
+        return Row(
+          children: [
+            // Insert a prefix at the front if the prefix visibility mode matches
+            // the current text state.
+            if (_showPrefixWidget(text!)) widget.prefix!,
+            // In the middle part, stack the placeholder on top of the main EditableText
+            // if needed.
+            Expanded(child: body),
+            // First add the explicit suffix if the suffix visibility mode matches.
+            if (_showSuffixWidget(text)) ...[
+              widget.suffix!,
+              const SizedBox(width: 4.0),
+            ]
+          ],
+        );
       },
     );
   }
