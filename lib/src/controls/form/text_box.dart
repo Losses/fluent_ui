@@ -33,6 +33,11 @@ enum OverlayVisibilityMode {
   always,
 }
 
+enum ContainerWrapper {
+  row,
+  wrap,
+}
+
 class _TextBoxSelectionGestureDetectorBuilder
     extends TextSelectionGestureDetectorBuilder {
   _TextBoxSelectionGestureDetectorBuilder({
@@ -194,6 +199,8 @@ class TextBox extends StatefulWidget {
     this.contextMenuBuilder = _defaultContextMenuBuilder,
     this.spellCheckConfiguration,
     this.magnifierConfiguration,
+    this.containerWrapper = ContainerWrapper.row,
+    this.minimumInputWidth = 0.0,
   })  : assert(obscuringCharacter.length == 1),
         smartDashesType = smartDashesType ??
             (obscureText ? SmartDashesType.disabled : SmartDashesType.enabled),
@@ -505,6 +512,10 @@ class TextBox extends StatefulWidget {
 
   /// {@macro flutter.services.TextInputConfiguration.enableIMEPersonalizedLearning}
   final bool enableIMEPersonalizedLearning;
+
+  final ContainerWrapper containerWrapper;
+
+  final double minimumInputWidth;
 
   /// {@macro flutter.widgets.EditableText.contextMenuBuilder}
   ///
@@ -886,40 +897,58 @@ class _TextBoxState extends State<TextBox>
       valueListenable: _effectiveController,
       child: editableText,
       builder: (BuildContext context, TextEditingValue? text, Widget? child) {
-        return Row(children: <Widget>[
+        final body = Stack(
+          children: <Widget>[
+            if (widget.placeholder != null && text!.text.isEmpty)
+              SizedBox(
+                width: double.infinity,
+                child: Padding(
+                  padding: widget.padding,
+                  child: Text(
+                    widget.placeholder!,
+                    maxLines: widget.maxLines,
+                    overflow:
+                        placeholderStyle?.overflow ?? TextOverflow.ellipsis,
+                    style: placeholderStyle,
+                    textAlign: widget.textAlign,
+                  ),
+                ),
+              ),
+            child!,
+          ],
+        );
+
+        final wrappedBody = widget.containerWrapper == ContainerWrapper.row
+            ? Expanded(
+                child: body,
+              )
+            : Container(
+                constraints: BoxConstraints(minWidth: widget.minimumInputWidth),
+                child: body);
+
+        final children = <Widget>[
           // Insert a prefix at the front if the prefix visibility mode matches
           // the current text state.
           if (_showPrefixWidget(text!)) widget.prefix!,
           // In the middle part, stack the placeholder on top of the main EditableText
           // if needed.
           Expanded(
-            child: Stack(
-              children: <Widget>[
-                if (widget.placeholder != null && text.text.isEmpty)
-                  SizedBox(
-                    width: double.infinity,
-                    child: Padding(
-                      padding: widget.padding,
-                      child: Text(
-                        widget.placeholder!,
-                        maxLines: widget.maxLines,
-                        overflow:
-                            placeholderStyle?.overflow ?? TextOverflow.ellipsis,
-                        style: placeholderStyle,
-                        textAlign: widget.textAlign,
-                      ),
-                    ),
-                  ),
-                child!,
-              ],
-            ),
+            child: wrappedBody,
           ),
           // First add the explicit suffix if the suffix visibility mode matches.
           if (_showSuffixWidget(text)) ...[
             widget.suffix!,
             const SizedBox(width: 4.0),
           ]
-        ]);
+        ];
+
+        if (widget.containerWrapper == ContainerWrapper.row) {
+          return Row(
+            children: children,
+          );
+        }
+
+        return Wrap(children: children);
       },
     );
   }
