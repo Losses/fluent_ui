@@ -38,6 +38,17 @@ enum ContainerWrapper {
   wrap,
 }
 
+class ExpandedPrefix extends StatelessWidget {
+  const ExpandedPrefix({super.key, this.children});
+
+  final List<Widget>? children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container();
+  }
+}
+
 class _TextBoxSelectionGestureDetectorBuilder
     extends TextSelectionGestureDetectorBuilder {
   _TextBoxSelectionGestureDetectorBuilder({
@@ -929,7 +940,11 @@ class _TextBoxState extends State<TextBox>
         final children = <Widget>[
           // Insert a prefix at the front if the prefix visibility mode matches
           // the current text state.
-          if (_showPrefixWidget(text!)) widget.prefix!,
+            if (_showPrefixWidget(text!))
+              if (widget.prefix is ExpandedPrefix)
+                ...(widget.prefix as ExpandedPrefix).children ?? []
+              else
+                widget.prefix!,
           // In the middle part, stack the placeholder on top of the main EditableText
           // if needed.
           wrappedBody,
