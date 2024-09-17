@@ -869,7 +869,9 @@ class _AutoSuggestBoxOverlayState<T> extends State<_AutoSuggestBoxOverlay<T>> {
       setState(() {});
     });
     itemsSubscription = widget.itemsStream.listen((items) {
-      this.items = items;
+      setState(() {
+        this.items = items;
+      });
     });
   }
 
