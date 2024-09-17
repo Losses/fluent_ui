@@ -200,6 +200,8 @@ class TextBox extends StatefulWidget {
     this.spellCheckConfiguration,
     this.magnifierConfiguration,
     this.containerWrapper = ContainerWrapper.row,
+    this.containerMainAxisAlignment = MainAxisAlignment.start,
+    this.containerCrossAxisAlignment = CrossAxisAlignment.start,
   })  : assert(obscuringCharacter.length == 1),
         smartDashesType = smartDashesType ??
             (obscureText ? SmartDashesType.disabled : SmartDashesType.enabled),
@@ -513,6 +515,8 @@ class TextBox extends StatefulWidget {
   final bool enableIMEPersonalizedLearning;
 
   final ContainerWrapper containerWrapper;
+  final MainAxisAlignment containerMainAxisAlignment;
+  final CrossAxisAlignment containerCrossAxisAlignment;
 
   /// {@macro flutter.widgets.EditableText.contextMenuBuilder}
   ///
@@ -934,9 +938,15 @@ class _TextBoxState extends State<TextBox>
         ];
 
         if (widget.containerWrapper == ContainerWrapper.row) {
-          return Row(children: children);
+          return Row(
+              mainAxisAlignment: widget.containerMainAxisAlignment,
+              crossAxisAlignment: widget.containerCrossAxisAlignment,
+              children: children);
         } else if (widget.containerWrapper == ContainerWrapper.column) {
-          return Column(children: children);
+          return Column(
+              mainAxisAlignment: widget.containerMainAxisAlignment,
+              crossAxisAlignment: widget.containerCrossAxisAlignment,
+              children: children);
         }
 
         return Row(children: children);
