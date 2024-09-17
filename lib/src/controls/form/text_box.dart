@@ -36,18 +36,6 @@ enum OverlayVisibilityMode {
 enum ContainerWrapper {
   row,
   column,
-  wrap,
-}
-
-class ExpandedPrefix extends StatelessWidget {
-  const ExpandedPrefix({super.key, this.children});
-
-  final List<Widget>? children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container();
-  }
 }
 
 class _TextBoxSelectionGestureDetectorBuilder
@@ -929,19 +917,13 @@ class _TextBoxState extends State<TextBox>
 
         final wrappedBody = widget.containerWrapper == ContainerWrapper.row ||
                 widget.containerWrapper == ContainerWrapper.column
-            ? Expanded(
-                child: body,
-              )
+            ? Expanded(child: body)
             : body;
 
         final children = <Widget>[
           // Insert a prefix at the front if the prefix visibility mode matches
           // the current text state.
-          if (_showPrefixWidget(text!))
-            if (widget.prefix is ExpandedPrefix)
-              ...(widget.prefix as ExpandedPrefix).children ?? []
-            else
-              widget.prefix!,
+          if (_showPrefixWidget(text!)) widget.prefix!,
           // In the middle part, stack the placeholder on top of the main EditableText
           // if needed.
           wrappedBody,
@@ -953,16 +935,12 @@ class _TextBoxState extends State<TextBox>
         ];
 
         if (widget.containerWrapper == ContainerWrapper.row) {
-          return Row(
-            children: children,
-          );
+          return Row(children: children);
         } else if (widget.containerWrapper == ContainerWrapper.column) {
-          return Column(
-            children: children,
-          );
+          return Column(children: children);
         }
 
-        return Wrap(children: children);
+        return Row(children: children);
       },
     );
   }
