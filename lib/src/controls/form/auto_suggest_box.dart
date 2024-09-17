@@ -32,11 +32,6 @@ enum TextChangedReason {
   cleared,
 }
 
-enum OnSelectBehavior {
-  fillItem,
-  clear,
-}
-
 /// The default max height the auto suggest box popup can have
 const kAutoSuggestBoxPopupMaxHeight = 380.0;
 
@@ -143,7 +138,7 @@ class AutoSuggestBox<T> extends StatefulWidget {
     this.inputFormatters,
     this.maxPopupHeight = kAutoSuggestBoxPopupMaxHeight,
     this.decorationBuilder,
-    this.onSelectedBehavior = OnSelectBehavior.fillItem,
+    this.onSelectTextDelegate,
   })  : autovalidateMode = AutovalidateMode.disabled,
         validator = null;
 
@@ -187,7 +182,7 @@ class AutoSuggestBox<T> extends StatefulWidget {
     this.inputFormatters,
     this.maxPopupHeight = kAutoSuggestBoxPopupMaxHeight,
     this.decorationBuilder,
-    this.onSelectedBehavior = OnSelectBehavior.fillItem,
+    this.onSelectTextDelegate,
   });
 
   /// The list of items to display to the user to pick
@@ -352,7 +347,7 @@ class AutoSuggestBox<T> extends StatefulWidget {
   /// {@macro flutter.widgets.editableText.inputFormatters}
   final List<TextInputFormatter>? inputFormatters;
 
-  final OnSelectBehavior onSelectedBehavior;
+  final String Function(AutoSuggestBoxItem<T>)? onSelectTextDelegate;
 
   /// The max height the popup can assume.
   ///
@@ -583,10 +578,7 @@ class AutoSuggestBoxState<T> extends State<AutoSuggestBox<T>> {
                   item.onSelected?.call();
                   widget.onSelected?.call(item);
 
-                  final text =
-                      widget.onSelectedBehavior == OnSelectBehavior.fillItem
-                          ? item.label
-                          : '';
+                  final text = widget.onSelectTextDelegate != null ? widget.onSelectTextDelegate!(item) : item.label;
 
                   _controller
                     ..text = text
