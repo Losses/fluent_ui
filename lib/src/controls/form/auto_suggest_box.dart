@@ -578,7 +578,9 @@ class AutoSuggestBoxState<T> extends State<AutoSuggestBox<T>> {
                   item.onSelected?.call();
                   widget.onSelected?.call(item);
 
-                  final text = widget.onSelectTextDelegate != null ? widget.onSelectTextDelegate!(item) : item.label;
+                  final text = widget.onSelectTextDelegate != null
+                      ? widget.onSelectTextDelegate!(item)
+                      : item.label;
 
                   _controller
                     ..text = text
@@ -951,7 +953,11 @@ class _AutoSuggestBoxOverlayState<T> extends State<_AutoSuggestBoxOverlay<T>> {
                       final item = sortedItems[index];
                       return widget.itemBuilder?.call(context, item) ??
                           _AutoSuggestBoxOverlayTile(
-                            text: item.child ?? Text(item.label),
+                            text: item.child ??
+                                Text(
+                                  item.label,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                             semanticLabel: item.semanticLabel ?? item.label,
                             selected: item._selected || widget.node.hasFocus,
                             onSelected: () => widget.onSelected(item),
