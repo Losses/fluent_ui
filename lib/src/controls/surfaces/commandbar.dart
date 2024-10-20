@@ -117,6 +117,8 @@ class CommandBar extends StatefulWidget {
   /// [CommandBarOverflowBehavior.dynamicOverflow].)
   final CommandBarActionItemBuilder? overflowItemBuilder;
 
+  final MenuFlyoutItem Function(BuildContext context, CommandBarItem item)? overflowMenuItemBuilder;
+
   /// Determines what should happen when the items are too wide for the
   /// primary command bar area. See [CommandBarOverflowBehavior].
   final CommandBarOverflowBehavior overflowBehavior;
@@ -174,6 +176,7 @@ class CommandBar extends StatefulWidget {
     CrossAxisAlignment? crossAxisAlignment,
     this.overflowItemAlignment = MainAxisAlignment.end,
     this.direction = Axis.horizontal,
+    this.overflowMenuItemBuilder,
   })  : _isExpanded = overflowBehavior != CommandBarOverflowBehavior.noWrap,
         isCompact = isCompact ?? direction == Axis.vertical,
         crossAxisAlignment = crossAxisAlignment ??
@@ -250,7 +253,7 @@ class _CommandBarState extends State<CommandBar> {
             ),
           ),
           builder: (context) {
-            return FlyoutContent(
+            return widget.overflowMenuItemBuilder == null ? FlyoutContent(
               constraints: const BoxConstraints(maxWidth: 200.0),
               padding: const EdgeInsetsDirectional.only(top: 8.0),
               child: ListView(
@@ -261,6 +264,14 @@ class _CommandBarState extends State<CommandBar> {
                     CommandBarItemDisplayMode.inSecondary,
                   );
                 }).toList(),
+              ),
+            ) : Container(
+                constraints: const BoxConstraints(maxWidth: 200),
+                child: MenuFlyout(
+                items: [
+                  for (final entry in allSecondaryItems)
+                    widget.overflowMenuItemBuilder!(context, entry),
+                ],
               ),
             );
           },
