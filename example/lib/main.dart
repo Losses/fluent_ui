@@ -17,6 +17,7 @@ import 'routes/surfaces.dart' deferred as surfaces;
 import 'routes/theming.dart' deferred as theming;
 import 'theme.dart';
 import 'widgets/deferred_widget.dart';
+import 'widgets/window_resize_region.dart';
 
 const String appTitle = 'Win UI for Flutter';
 
@@ -107,14 +108,16 @@ class MyApp extends StatelessWidget {
           builder: (context, child) {
             return Directionality(
               textDirection: appTheme.textDirection,
-              child: NavigationPaneTheme(
-                data: NavigationPaneThemeData(
-                  backgroundColor: appTheme.windowEffect !=
-                          flutter_acrylic.WindowEffect.disabled
-                      ? Colors.transparent
-                      : null,
+              child: WindowResizeRegion(
+                child: NavigationPaneTheme(
+                  data: NavigationPaneThemeData(
+                    backgroundColor: appTheme.windowEffect !=
+                            flutter_acrylic.WindowEffect.disabled
+                        ? Colors.transparent
+                        : null,
+                  ),
+                  child: child!,
                 ),
-                child: child!,
               ),
             );
           },
