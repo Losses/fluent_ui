@@ -7,6 +7,10 @@ import 'package:flutter/services.dart';
 
 part 'editable_combo_box.dart';
 
+bool _comboBoxOpened = false;
+
+bool get comboBoxOpened => _comboBoxOpened;
+
 const Duration _kComboBoxMenuDuration = Duration(milliseconds: 300);
 const double _kMenuItemBottomPadding = 6.0;
 const double kComboBoxItemHeight = kPickerHeight + _kMenuItemBottomPadding;
@@ -1138,6 +1142,7 @@ class ComboBoxState<T> extends State<ComboBox<T>> {
   }
 
   void closePopup() {
+    _comboBoxOpened = false;
     _comboboxRoute?._dismiss();
     _comboboxRoute = null;
   }
@@ -1189,6 +1194,8 @@ class ComboBoxState<T> extends State<ComboBox<T>> {
 
   void openPopup() {
     assert(isEnabled, 'The ComboBox must be enabled to open a popup');
+    _comboBoxOpened = true;
+
     final textDirection = Directionality.maybeOf(context);
     const EdgeInsetsGeometry menuMargin = _kAlignedMenuMargin;
 
