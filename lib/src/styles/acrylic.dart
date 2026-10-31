@@ -1,10 +1,11 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui show Image;
+import 'dart:ui' as ui show Image, instantiateImageCodec;
 import 'dart:ui' show ImageFilter;
 
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' as m;
+import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 
 TextStyle _inheritFontFamilies(TextStyle style, TextStyle inherited) {
   // copyWith cannot clear a font family or fallback list to null.
@@ -492,6 +493,92 @@ class _AcrylicPainter extends CustomPainter {
   @override
   bool shouldRepaint(_AcrylicPainter old) {
     return luminosityColor != old.luminosityColor || tintColor != old.tintColor;
+  }
+}
+
+/// Precompiles Skia draw operations used by acrylic surfaces.
+///
+/// Run [execute] during application initialization. [devicePixelRatio] is the
+/// native view's pixel ratio; [scaleFactors] contains the viewport scales the
+/// application supports. The offscreen image remains bounded at 512 by 512
+/// pixels regardless of these values.
+class AcrylicShaderWarmUp extends ShaderWarmUp {
+  const AcrylicShaderWarmUp({
+    this.devicePixelRatio = 1.0,
+    this.scaleFactors = const [1.0],
+    this.assetBundle,
+  });
+
+  final double devicePixelRatio;
+  final List<double> scaleFactors;
+  final AssetBundle? assetBundle;
+
+  @override
+  Size get size => const Size(512, 512);
+
+  @override
+  Future<void> warmUpOnCanvas(Canvas canvas) async {
+    if (!devicePixelRatio.isFinite ||
+        devicePixelRatio <= 0 ||
+        scaleFactors.any((scale) => !scale.isFinite || scale <= 0)) {
+      throw ArgumentError(
+          'Pixel ratio and scale factors must be finite and positive');
+    }
+    if (scaleFactors.isEmpty) return;
+    final data = await (assetBundle ?? rootBundle)
+        .load('packages/fluent_ui/assets/AcrylicNoise.png');
+    final codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+    );
+    final ui.Image image;
+    try {
+      image = (await codec.getNextFrame()).image;
+    } finally {
+      codec.dispose();
+    }
+    try {
+      const bounds = Rect.fromLTWH(0, 0, 256, 192);
+      canvas.drawColor(const Color(0xff386a91), BlendMode.src);
+      for (final factor in scaleFactors) {
+        canvas.save();
+        canvas.translate(20 * factor, 20 * factor);
+        final shape = RRect.fromRectAndRadius(bounds, const Radius.circular(8));
+        canvas.drawShadow(
+            Path()..addRRect(shape), const Color(0x88000000), 8, false);
+        canvas.clipRRect(shape);
+        canvas.saveLayer(
+            bounds,
+            Paint()
+              ..imageFilter = ImageFilter.blur(
+                sigmaX: kBlurAmount * devicePixelRatio * factor,
+                sigmaY: kBlurAmount * devicePixelRatio * factor,
+              ));
+        canvas.drawImageRect(
+            image,
+            Rect.fromLTWH(
+                0, 0, image.width.toDouble(), image.height.toDouble()),
+            bounds,
+            Paint());
+        canvas.restore();
+        canvas.saveLayer(bounds, Paint()..color = const Color(0xbfffffff));
+        _AcrylicPainter(
+          luminosityColor: const Color(0xcc808080),
+          tintColor: const Color(0xcceeeeee),
+        ).paint(canvas, bounds.size);
+        canvas.drawImage(
+            image, Offset.zero, Paint()..color = const Color(0x05ffffff));
+        canvas.drawRRect(
+            shape,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1
+              ..color = const Color(0x88777777));
+        canvas.restore();
+        canvas.restore();
+      }
+    } finally {
+      image.dispose();
+    }
   }
 }
 
