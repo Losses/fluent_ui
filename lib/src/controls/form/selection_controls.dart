@@ -260,13 +260,28 @@ class _FluentTextSelectionControlsToolbarState
     }
 
     assert(debugCheckHasMediaQuery(context));
+    // Flutter's follower offsets by a global point in local units. Translate
+    // its child back to the root overlay before laying out the toolbar.
+    final origin = widget.globalEditableRegion.topLeft;
+    final overlay = Overlay.of(context, rootOverlay: true)
+        .context
+        .findRenderObject()! as RenderBox;
+    final localOrigin = overlay.globalToLocal(origin);
+    final correction = origin - localOrigin;
+    final multiline =
+        widget.endpoints.last.point.dy - widget.endpoints.first.point.dy >
+            widget.textLineHeight / 2;
+    final localRight =
+        overlay.globalToLocal(widget.globalEditableRegion.topRight);
     final midpointAnchor = Offset(
-      (widget.selectionMidpoint.dx - widget.globalEditableRegion.left).clamp(
-        MediaQuery.paddingOf(context).left,
-        MediaQuery.sizeOf(context).width - MediaQuery.paddingOf(context).right,
-      ),
-      widget.selectionMidpoint.dy - widget.globalEditableRegion.top,
+      multiline
+          ? (localOrigin.dx + localRight.dx) / 2
+          : localOrigin.dx + widget.selectionMidpoint.dx,
+      localOrigin.dy + widget.selectionMidpoint.dy,
     );
+    final secondaryAnchor = widget.lastSecondaryTapDownPosition == null
+        ? null
+        : overlay.globalToLocal(widget.lastSecondaryTapDownPosition!);
 
     assert(debugCheckHasFluentLocalizations(context));
     final localizations = FluentLocalizations.of(context);
@@ -331,9 +346,12 @@ class _FluentTextSelectionControlsToolbarState
       return const SizedBox(width: 0.0, height: 0.0);
     }
 
-    return _FluentTextSelectionToolbar(
-      anchor: widget.lastSecondaryTapDownPosition ?? midpointAnchor,
-      children: items,
+    return Transform.translate(
+      offset: correction,
+      child: _FluentTextSelectionToolbar(
+        anchor: secondaryAnchor ?? midpointAnchor,
+        children: items,
+      ),
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import '../popup_metrics.dart';
+
 import 'package:fluent_ui/fluent_ui.dart';
 
 /// The padding used on the content of [DatePicker] and [TimePicker]
@@ -321,7 +323,20 @@ class Picker extends StatefulWidget {
   State<Picker> createState() => _PickerState();
 }
 
-class _PickerState extends State<Picker> {
+class _PickerState extends State<Picker> with PopupMetricsObserver<Picker> {
+  final Set<Route<void>> _openRoutes = {};
+
+  @override
+  VoidCallback? capturePopupInvalidation() {
+    final routes = _openRoutes.toList();
+    if (routes.isEmpty) return null;
+    return () {
+      for (final route in routes) {
+        if (route.isActive) route.navigator?.removeRoute(route);
+      }
+    };
+  }
+
   late final GlobalKey _childKey = GlobalKey(debugLabel: '${widget.child} key');
 
   Future<void> open() {
@@ -342,7 +357,7 @@ class _PickerState extends State<Picker> {
 
     final isAcrylicDisabled = DisableAcrylic.of(context) != null;
 
-    return navigator.push(PageRouteBuilder(
+    final route = PageRouteBuilder<void>(
       barrierColor: Colors.transparent,
       opaque: false,
       barrierDismissible: true,
@@ -417,7 +432,9 @@ class _PickerState extends State<Picker> {
         if (isAcrylicDisabled) return DisableAcrylic(child: view);
         return view;
       },
-    ));
+    );
+    _openRoutes.add(route);
+    return navigator.push(route).whenComplete(() => _openRoutes.remove(route));
   }
 
   @override

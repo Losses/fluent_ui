@@ -634,7 +634,7 @@ class FlyoutController with ChangeNotifier {
           }
         };
 
-        return MenuInfoProvider(
+        return _FlyoutMetricsObserver(child: MenuInfoProvider(
           builder: (context, rootSize, menus, keys) {
             assert(menus.length == keys.length);
 
@@ -743,10 +743,14 @@ class FlyoutController with ChangeNotifier {
                         menuBox.size;
                   });
 
-                  if (!flyoutRect.contains(hover.position) &&
-                      !targetRect.contains(hover.position) &&
+                  // The rectangles above use navigator coordinates. Pointer
+                  // events remain global even when the app is transformed.
+                  final pointerPosition =
+                      navigatorBox.globalToLocal(hover.position);
+                  if (!flyoutRect.contains(pointerPosition) &&
+                      !targetRect.contains(pointerPosition) &&
                       !menusRects
-                          .any((rect) => rect.contains(hover.position))) {
+                          .any((rect) => rect.contains(pointerPosition))) {
                     navigator.pop();
                   }
                 },
@@ -772,7 +776,7 @@ class FlyoutController with ChangeNotifier {
               child: box,
             );
           },
-        );
+        ));
       },
     ));
 
@@ -781,6 +785,49 @@ class FlyoutController with ChangeNotifier {
 
     return result;
   }
+}
+
+/// A flyout's anchor is captured when it opens. Dismiss that particular route
+/// when viewport geometry changes rather than leaving it attached to an old
+/// position (or accidentally popping another route that opened above it).
+class _FlyoutMetricsObserver extends StatefulWidget {
+  const _FlyoutMetricsObserver({required this.child});
+  final Widget child;
+
+  @override
+  State<_FlyoutMetricsObserver> createState() => _FlyoutMetricsObserverState();
+}
+
+class _FlyoutMetricsObserverState extends State<_FlyoutMetricsObserver> {
+  (Size, double, EdgeInsets, EdgeInsets, EdgeInsets)? _metrics;
+  bool _scheduled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final media = MediaQuery.of(context);
+    final next = (
+      media.size,
+      media.devicePixelRatio,
+      media.viewInsets,
+      media.viewPadding,
+      media.padding
+    );
+    if (_metrics != null && _metrics != next && !_scheduled) {
+      _scheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final route = ModalRoute.of(context);
+        if (route != null && route.isActive) {
+          Navigator.of(context).removeRoute(route);
+        }
+      });
+    }
+    _metrics = next;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _DismissAction extends DismissAction {

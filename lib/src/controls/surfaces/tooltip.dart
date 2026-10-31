@@ -244,7 +244,26 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _visible = TooltipVisibility.of(context);
+    final media = MediaQuery.of(context);
+    final metrics = (
+      media.size,
+      media.devicePixelRatio,
+      media.padding,
+      media.viewPadding,
+      media.viewInsets
+    );
+    if (_viewportMetrics != null && metrics != _viewportMetrics) {
+      final entry = _entry;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && entry != null && identical(entry, _entry)) {
+          _dismissTooltip(immediately: true);
+        }
+      });
+    }
+    _viewportMetrics = metrics;
   }
+
+  (Size, double, EdgeInsets, EdgeInsets, EdgeInsets)? _viewportMetrics;
 
   // Forces a rebuild if a mouse has been added or removed.
   void _handleMouseTrackerChange() {
@@ -380,7 +399,8 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
     final box = context.findRenderObject()! as RenderBox;
     Offset target;
     if (_mouseIsConnected && widget.useMousePosition && mousePosition != null) {
-      target = mousePosition!;
+      final overlayBox = overlayState.context.findRenderObject()! as RenderBox;
+      target = overlayBox.globalToLocal(mousePosition!);
     } else {
       target = box.localToGlobal(
         box.size.center(Offset.zero),

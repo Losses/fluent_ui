@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -228,14 +227,11 @@ class Slider extends StatefulWidget {
 }
 
 class _SliderState extends State<Slider> {
-  final materialSliderKey = GlobalKey<State<m.Slider>>();
-
   late FocusNode _focusNode;
   bool _sliding = false;
   bool _showFocusHighlight = false;
 
   static const showLabelDuration = Duration(milliseconds: 400);
-  Timer? _overlayTimer;
 
   @override
   void initState() {
@@ -253,21 +249,7 @@ class _SliderState extends State<Slider> {
     _focusNode.removeListener(_handleFocusChanged);
     // Only dispose the focus node manually created
     if (widget.focusNode == null) _focusNode.dispose();
-    _overlayTimer?.cancel();
     super.dispose();
-  }
-
-  void _showLabelOverlay() {
-    final sliderState = materialSliderKey.currentState as dynamic;
-    sliderState.showValueIndicator();
-    (sliderState.overlayController as AnimationController).forward();
-    (sliderState.valueIndicatorController as AnimationController).forward();
-  }
-
-  void _hideLabelOverlay() {
-    final sliderState = materialSliderKey.currentState as dynamic;
-    (sliderState.overlayController as AnimationController).reverse();
-    (sliderState.valueIndicatorController as AnimationController).reverse();
   }
 
   @override
@@ -280,6 +262,9 @@ class _SliderState extends State<Slider> {
 
     final disabledState = {WidgetState.disabled};
     Widget child = HoverButton(
+      // Material Slider's value indicator uses an OverlayPortal whose anchor
+      // must remain a distinct semantics node for traversal grafting.
+      mergeSemantics: false,
       onPressed: widget.onChanged == null ? null : () {},
       margin: style.margin ?? EdgeInsets.zero,
       cursor: widget.mouseCursor,
@@ -312,6 +297,9 @@ class _SliderState extends State<Slider> {
                 disabledThumbRadius: style.thumbRadius?.resolve(states),
               ),
               valueIndicatorShape: _RectangularSliderValueIndicatorShape(
+                overlayBox: Overlay.maybeOf(context, rootOverlay: true)
+                    ?.context
+                    .findRenderObject() as RenderBox?,
                 strokeColor: style.labelBackgroundColor,
                 backgroundColor: style.labelBackgroundColor,
                 vertical: widget.vertical,
@@ -328,7 +316,6 @@ class _SliderState extends State<Slider> {
             child: child!,
           ),
           child: m.Slider(
-            key: materialSliderKey,
             value: widget.value,
             max: widget.max,
             min: widget.min,
@@ -359,21 +346,22 @@ class _SliderState extends State<Slider> {
         child: child,
       ),
     );
-    child = MouseRegion(
-      onEnter: (event) {
-        _overlayTimer = Timer(showLabelDuration, _showLabelOverlay);
-      },
-      onExit: (event) {
-        _overlayTimer?.cancel();
-        _overlayTimer = null;
-        _hideLabelOverlay();
-      },
-      child: child,
-    );
     if (widget.vertical) {
-      return RotatedBox(
+      child = RotatedBox(
         quarterTurns: direction == TextDirection.ltr ? 3 : 5,
         child: child,
+      );
+    }
+    if (widget.label case final String label when label.isNotEmpty) {
+      child = TooltipVisibility(
+        visible: !_sliding,
+        child: Tooltip(
+          message: label,
+          style: const TooltipThemeData(waitDuration: showLabelDuration),
+          excludeFromSemantics: true,
+          useMousePosition: false,
+          child: child,
+        ),
       );
     }
     return child;
@@ -726,9 +714,11 @@ class _RectangularSliderValueIndicatorShape extends m.SliderComponentShape {
   final Color? strokeColor;
   final bool vertical;
   final bool ltr;
+  final RenderBox? overlayBox;
 
   /// Create a slider value indicator that resembles a rectangular tooltip.
   const _RectangularSliderValueIndicatorShape({
+    this.overlayBox,
     this.backgroundColor,
     this.strokeColor,
     this.vertical = false,
@@ -739,6 +729,7 @@ class _RectangularSliderValueIndicatorShape extends m.SliderComponentShape {
       _RectangularSliderValueIndicatorPathPainter(
         vertical,
         ltr,
+        overlayBox,
       );
 
   @override
@@ -790,9 +781,12 @@ class _RectangularSliderValueIndicatorPathPainter {
   /// Whether the current [Directionality] is [TextDirection.ltr]
   final bool ltr;
 
+  final RenderBox? overlayBox;
+
   const _RectangularSliderValueIndicatorPathPainter([
     this.vertical = false,
     this.ltr = false,
+    this.overlayBox,
   ]);
 
   static const double _triangleHeight = 8.0;
@@ -827,17 +821,19 @@ class _RectangularSliderValueIndicatorPathPainter {
     /// Value indicator draws on the Overlay and by using the global Offset
     /// we are making sure we use the bounds of the Overlay instead of the Slider.
     final globalCenter = parentBox.localToGlobal(center);
+    final overlayCenter =
+        overlayBox?.globalToLocal(globalCenter) ?? globalCenter;
 
     // The rectangle must be shifted towards the center so that it minimizes the
     // chance of it rendering outside the bounds of the render box. If the shift
     // is negative, then the lobe is shifted from right to left, and if it is
     // positive, then the lobe is shifted from left to right.
     final double overflowLeft =
-        math.max(0, rectangleWidth / 2 - globalCenter.dx + edgePadding);
+        math.max(0, rectangleWidth / 2 - overlayCenter.dx + edgePadding);
     final double overflowRight = math.max(
         0,
         rectangleWidth / 2 -
-            (sizeWithOverflow.width - globalCenter.dx - edgePadding));
+            (sizeWithOverflow.width - overlayCenter.dx - edgePadding));
 
     if (rectangleWidth < sizeWithOverflow.width) {
       return overflowLeft - overflowRight;

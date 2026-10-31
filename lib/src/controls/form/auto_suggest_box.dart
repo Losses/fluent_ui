@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'popup_metrics.dart';
+
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -408,7 +410,18 @@ class AutoSuggestBox<T> extends StatefulWidget {
   }
 }
 
-class AutoSuggestBoxState<T> extends State<AutoSuggestBox<T>> {
+class AutoSuggestBoxState<T> extends State<AutoSuggestBox<T>>
+    with PopupMetricsObserver<AutoSuggestBox<T>> {
+  @override
+  VoidCallback? capturePopupInvalidation() {
+    final entry = _entry;
+    return entry == null
+        ? null
+        : () {
+            if (identical(entry, _entry)) dismissOverlay();
+          };
+  }
+
   late FocusNode _focusNode = widget.focusNode ?? FocusNode();
   OverlayEntry? _entry;
   final LayerLink _layerLink = LayerLink();
@@ -462,6 +475,8 @@ class AutoSuggestBoxState<T> extends State<AutoSuggestBox<T>> {
 
   @override
   void dispose() {
+    _entry?.remove();
+    _entry = null;
     _focusNode.removeListener(_handleFocusChanged);
     _controller.removeListener(_handleTextChanged);
     _focusStreamController.close();
@@ -695,6 +710,25 @@ class AutoSuggestBoxState<T> extends State<AutoSuggestBox<T>> {
           if (!(event is KeyDownEvent || event is KeyRepeatEvent) ||
               !widget.enableKeyboardControls) {
             return KeyEventResult.ignored;
+          }
+
+          final composing = _controller.value.composing;
+          if (composing.isValid && !composing.isCollapsed &&
+              const [
+                LogicalKeyboardKey.escape,
+                LogicalKeyboardKey.enter,
+                LogicalKeyboardKey.numpadEnter,
+                LogicalKeyboardKey.space,
+                LogicalKeyboardKey.arrowUp,
+                LogicalKeyboardKey.arrowDown,
+                LogicalKeyboardKey.arrowLeft,
+                LogicalKeyboardKey.arrowRight,
+                LogicalKeyboardKey.pageUp,
+                LogicalKeyboardKey.pageDown,
+              ].contains(event.logicalKey)) {
+            // Stop ancestor shortcuts while leaving the key unhandled by
+            // Flutter so the platform input method can operate its candidates.
+            return KeyEventResult.skipRemainingHandlers;
           }
 
           if (event.logicalKey == LogicalKeyboardKey.escape) {

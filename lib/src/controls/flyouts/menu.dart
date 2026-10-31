@@ -146,7 +146,11 @@ class _MenuFlyoutState extends State<MenuFlyout> {
                 ) &
                 itemBox.size;
 
-            if (!itemRect.contains(event.position)) {
+            final rootBox =
+                parent?.widget.root?.context.findRenderObject() as RenderBox?;
+            final pointer =
+                rootBox?.globalToLocal(event.position) ?? event.position;
+            if (!itemRect.contains(pointer)) {
               state.close(menuInfo);
             }
           }

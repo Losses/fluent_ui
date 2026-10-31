@@ -196,7 +196,7 @@ class TextBox extends StatefulWidget {
     this.restorationId,
     this.scribbleEnabled = true,
     this.enableIMEPersonalizedLearning = true,
-    this.contextMenuBuilder = _defaultContextMenuBuilder,
+    this.contextMenuBuilder = adaptiveContextMenuBuilder,
     this.spellCheckConfiguration,
     this.magnifierConfiguration,
     this.decorationBuilder,
@@ -525,10 +525,45 @@ class TextBox extends StatefulWidget {
   ///  * [AdaptiveTextSelectionToolbar], which is built by default.
   final EditableTextContextMenuBuilder? contextMenuBuilder;
 
-  static Widget _defaultContextMenuBuilder(
+  /// An adaptive menu whose anchors use the root overlay's coordinate space.
+  static Widget adaptiveContextMenuBuilder(
       BuildContext context, EditableTextState editableTextState) {
-    return AdaptiveTextSelectionToolbar.editableText(
-      editableTextState: editableTextState,
+    final editable = editableTextState.renderEditable;
+    final overlay = Overlay.of(context, rootOverlay: true)
+        .context
+        .findRenderObject()! as RenderBox;
+    final box = editableTextState.context.findRenderObject()! as RenderBox;
+    final origin = box.localToGlobal(Offset.zero);
+    final correction = origin - overlay.globalToLocal(origin);
+    Offset toOverlay(Offset local) =>
+        overlay.globalToLocal(editable.localToGlobal(local));
+    final secondaryTap = editable.lastSecondaryTapDownPosition;
+    late final TextSelectionToolbarAnchors anchors;
+    if (secondaryTap != null) {
+      anchors = TextSelectionToolbarAnchors(
+          primaryAnchor: overlay.globalToLocal(secondaryTap));
+    } else {
+      final points = editable.getEndpointsForSelection(
+          editableTextState.textEditingValue.selection);
+      final heights = editableTextState.getGlyphHeights();
+      final start = points.first.point;
+      final end = points.last.point;
+      final multiline = end.dy - start.dy > heights.endGlyphHeight / 2;
+      final x = multiline ? editable.size.width / 2 : (start.dx + end.dx) / 2;
+      final top = (start.dy - heights.startGlyphHeight)
+          .clamp(0.0, editable.size.height);
+      final bottom = end.dy.clamp(0.0, editable.size.height);
+      anchors = TextSelectionToolbarAnchors(
+        primaryAnchor: toOverlay(Offset(x, top)),
+        secondaryAnchor: toOverlay(Offset(x, bottom)),
+      );
+    }
+    return Transform.translate(
+      offset: correction,
+      child: AdaptiveTextSelectionToolbar.buttonItems(
+        anchors: anchors,
+        buttonItems: editableTextState.contextMenuButtonItems,
+      ),
     );
   }
 
@@ -1047,69 +1082,94 @@ class _TextBoxState extends State<TextBox>
       child: RepaintBoundary(
         child: UnmanagedRestorationScope(
           bucket: bucket,
-          child: EditableText(
-            key: editableTextKey,
-            controller: controller,
-            readOnly: widget.readOnly,
-            showCursor: widget.showCursor,
-            showSelectionHandles: _showSelectionHandles,
-            focusNode: _effectiveFocusNode,
-            keyboardType: widget.keyboardType,
-            textInputAction: widget.textInputAction,
-            textCapitalization: widget.textCapitalization,
-            style: textStyle,
-            strutStyle: widget.strutStyle,
-            textAlign: widget.textAlign,
-            textDirection: widget.textDirection,
-            autofocus: widget.autofocus,
-            obscuringCharacter: widget.obscuringCharacter,
-            obscureText: widget.obscureText,
-            autocorrect: widget.autocorrect,
-            smartDashesType: widget.smartDashesType,
-            smartQuotesType: widget.smartQuotesType,
-            enableSuggestions: widget.enableSuggestions,
-            maxLines: widget.maxLines,
-            minLines: widget.minLines,
-            expands: widget.expands,
-            magnifierConfiguration: widget.magnifierConfiguration ??
-                TextBox._fluentMagnifierConfiguration,
-            // Only show the selection highlight when the text field is focused.
-            selectionColor:
-                _effectiveFocusNode.hasFocus ? selectionColor : null,
-            selectionControls:
-                widget.selectionEnabled ? textSelectionControls : null,
-            onChanged: widget.onChanged,
-            onSelectionChanged: _handleSelectionChanged,
-            onEditingComplete: widget.onEditingComplete,
-            onSubmitted: widget.onSubmitted,
-            onTapOutside: widget.onTapOutside,
-            inputFormatters: formatters,
-            rendererIgnoresPointer: true,
-            cursorWidth: widget.cursorWidth,
-            cursorHeight: widget.cursorHeight,
-            cursorRadius: widget.cursorRadius,
-            cursorColor: cursorColor,
-            cursorOpacityAnimates: true,
-            cursorOffset: cursorOffset,
-            paintCursorAboveText: true,
-            autocorrectionTextRectColor: selectionColor,
-            backgroundCursorColor: disabledColor,
-            selectionHeightStyle: widget.selectionHeightStyle,
-            selectionWidthStyle: widget.selectionWidthStyle,
-            scrollPadding: widget.scrollPadding,
-            keyboardAppearance: keyboardAppearance,
-            dragStartBehavior: widget.dragStartBehavior,
-            scrollController: widget.scrollController,
-            scrollPhysics: widget.scrollPhysics,
-            enableInteractiveSelection: widget.enableInteractiveSelection,
-            autofillClient: this,
-            clipBehavior: widget.clipBehavior,
-            restorationId: 'editable',
-            scribbleEnabled: widget.scribbleEnabled,
-            enableIMEPersonalizedLearning: widget.enableIMEPersonalizedLearning,
-            contextMenuBuilder: widget.contextMenuBuilder,
-            spellCheckConfiguration: spellCheckConfiguration,
-          ),
+          child: Builder(builder: (context) {
+            final media = MediaQuery.of(context);
+            final view = View.of(context);
+            final mobile = !kIsWeb &&
+                (defaultTargetPlatform == TargetPlatform.android ||
+                    defaultTargetPlatform == TargetPlatform.iOS);
+            final editable = EditableText(
+              key: editableTextKey,
+              controller: controller,
+              readOnly: widget.readOnly,
+              showCursor: widget.showCursor,
+              showSelectionHandles: _showSelectionHandles,
+              focusNode: _effectiveFocusNode,
+              keyboardType: widget.keyboardType,
+              textInputAction: widget.textInputAction,
+              textCapitalization: widget.textCapitalization,
+              style: textStyle,
+              strutStyle: widget.strutStyle,
+              textAlign: widget.textAlign,
+              textDirection: widget.textDirection,
+              autofocus: widget.autofocus,
+              obscuringCharacter: widget.obscuringCharacter,
+              obscureText: widget.obscureText,
+              autocorrect: widget.autocorrect,
+              smartDashesType: widget.smartDashesType,
+              smartQuotesType: widget.smartQuotesType,
+              enableSuggestions: widget.enableSuggestions,
+              maxLines: widget.maxLines,
+              minLines: widget.minLines,
+              expands: widget.expands,
+              magnifierConfiguration: widget.magnifierConfiguration ??
+                  TextBox._fluentMagnifierConfiguration,
+              // Only show the selection highlight when the text field is focused.
+              selectionColor:
+                  _effectiveFocusNode.hasFocus ? selectionColor : null,
+              selectionControls:
+                  widget.selectionEnabled ? textSelectionControls : null,
+              onChanged: widget.onChanged,
+              onSelectionChanged: _handleSelectionChanged,
+              onEditingComplete: widget.onEditingComplete,
+              onSubmitted: widget.onSubmitted,
+              onTapOutside: widget.onTapOutside,
+              inputFormatters: formatters,
+              rendererIgnoresPointer: true,
+              cursorWidth: widget.cursorWidth,
+              cursorHeight: widget.cursorHeight,
+              cursorRadius: widget.cursorRadius,
+              cursorColor: cursorColor,
+              cursorOpacityAnimates: true,
+              cursorOffset: cursorOffset,
+              paintCursorAboveText: true,
+              autocorrectionTextRectColor: selectionColor,
+              backgroundCursorColor: disabledColor,
+              selectionHeightStyle: widget.selectionHeightStyle,
+              selectionWidthStyle: widget.selectionWidthStyle,
+              scrollPadding: widget.scrollPadding,
+              keyboardAppearance: keyboardAppearance,
+              dragStartBehavior: widget.dragStartBehavior,
+              scrollController: widget.scrollController,
+              scrollPhysics: widget.scrollPhysics,
+              enableInteractiveSelection: widget.enableInteractiveSelection,
+              autofillClient: this,
+              clipBehavior: widget.clipBehavior,
+              restorationId: 'editable',
+              scribbleEnabled: widget.scribbleEnabled,
+              enableIMEPersonalizedLearning:
+                  widget.enableIMEPersonalizedLearning,
+              contextMenuBuilder: widget.contextMenuBuilder == null
+                  ? null
+                  : (menuContext, state) => MediaQuery(
+                      data: media,
+                      child: Builder(
+                          builder: (context) =>
+                              widget.contextMenuBuilder!(context, state))),
+              spellCheckConfiguration: spellCheckConfiguration,
+            );
+            // EditableText's mobile toolbar restoration compares global render
+            // coordinates with MediaQuery.size. Those coordinates use the view's
+            // unscaled logical pixels, while the app's MediaQuery uses UI pixels.
+            // Keep the override local and restore the app data for menu content.
+            return mobile
+                ? MediaQuery(
+                    data: media.copyWith(
+                        size: view.physicalSize / view.devicePixelRatio),
+                    child: editable,
+                  )
+                : editable;
+          }),
         ),
       ),
     );

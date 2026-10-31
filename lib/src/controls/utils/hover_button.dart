@@ -60,6 +60,7 @@ class HoverButton extends StatefulWidget {
     this.focusEnabled = true,
     this.forceEnabled = false,
     this.hitTestBehavior = HitTestBehavior.opaque,
+    this.mergeSemantics = true,
   });
 
   /// {@template fluent_ui.controls.inputs.HoverButton.mouseCursor}
@@ -100,6 +101,9 @@ class HoverButton extends StatefulWidget {
   final VoidCallback? onFocusTap;
 
   final WidgetStateWidgetBuilder builder;
+
+  /// Whether the button and its descendants form a single semantics node.
+  final bool mergeSemantics;
 
   /// {@macro flutter.widgets.Focus.focusNode}
   final FocusNode? focusNode;
@@ -332,15 +336,14 @@ class _HoverButtonState extends State<HoverButton> {
         child: w,
       );
     }
-    w = MergeSemantics(
-      child: Semantics(
-        label: widget.semanticLabel,
-        enabled: enabled,
-        focusable: enabled && node.canRequestFocus,
-        focused: node.hasFocus,
-        child: w,
-      ),
+    w = Semantics(
+      label: widget.semanticLabel,
+      enabled: enabled,
+      focusable: enabled && node.canRequestFocus,
+      focused: node.hasFocus,
+      child: w,
     );
+    if (widget.mergeSemantics) w = MergeSemantics(child: w);
     if (widget.margin != null) w = Padding(padding: widget.margin!, child: w);
 
     w = HoverButtonInherited(

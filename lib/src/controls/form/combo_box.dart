@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'popup_metrics.dart';
+
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:fluent_ui/src/controls/form/pickers/pickers.dart';
 import 'package:flutter/foundation.dart';
@@ -1100,7 +1102,18 @@ class ComboBox<T> extends StatefulWidget {
   State<ComboBox<T>> createState() => ComboBoxState<T>();
 }
 
-class ComboBoxState<T> extends State<ComboBox<T>> {
+class ComboBoxState<T> extends State<ComboBox<T>>
+    with PopupMetricsObserver<ComboBox<T>> {
+  @override
+  VoidCallback? capturePopupInvalidation() {
+    final route = _comboboxRoute;
+    return route == null
+        ? null
+        : () {
+            if (identical(_comboboxRoute, route)) closePopup();
+          };
+  }
+
   int? _selectedIndex;
   int? get selectedIndex => _selectedIndex;
 
@@ -1219,10 +1232,9 @@ class ComboBoxState<T> extends State<ComboBox<T>> {
       popupColor: widget.popupColor,
     );
 
-    navigator
-        .push(_comboboxRoute!)
-        .then<void>((_ComboBoxRouteResult<T>? newValue) {
-      closePopup();
+    final route = _comboboxRoute!;
+    navigator.push(route).then<void>((_ComboBoxRouteResult<T>? newValue) {
+      if (identical(_comboboxRoute, route)) closePopup();
       if (!mounted || newValue == null) return;
       onChanged(newValue.result);
     });
