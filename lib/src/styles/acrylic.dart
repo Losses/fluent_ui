@@ -6,6 +6,37 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' as m;
 
+TextStyle _inheritFontFamilies(TextStyle style, TextStyle inherited) {
+  // copyWith cannot clear a font family or fallback list to null.
+  return TextStyle(
+    inherit: style.inherit,
+    color: style.color,
+    backgroundColor: style.backgroundColor,
+    fontSize: style.fontSize,
+    fontWeight: style.fontWeight,
+    fontStyle: style.fontStyle,
+    letterSpacing: style.letterSpacing,
+    wordSpacing: style.wordSpacing,
+    textBaseline: style.textBaseline,
+    height: style.height,
+    leadingDistribution: style.leadingDistribution,
+    locale: style.locale,
+    foreground: style.foreground,
+    background: style.background,
+    shadows: style.shadows,
+    fontFeatures: style.fontFeatures,
+    fontVariations: style.fontVariations,
+    decoration: style.decoration,
+    decorationColor: style.decorationColor,
+    decorationStyle: style.decorationStyle,
+    decorationThickness: style.decorationThickness,
+    debugLabel: style.debugLabel,
+    fontFamily: inherited.fontFamily,
+    fontFamilyFallback: inherited.fontFamilyFallback,
+    overflow: style.overflow,
+  );
+}
+
 const double kBlurAmount = 30.0;
 
 const double kDefaultAcrylicAlpha = 0.8;
@@ -168,6 +199,11 @@ class _AcrylicState extends State<Acrylic> {
         child: _AcrylicGuts(
           child: m.Material(
             type: m.MaterialType.transparency,
+            // The transparent ink surface must not select different fonts.
+            textStyle: _inheritFontFamilies(
+              m.Theme.of(context).textTheme.bodyMedium!,
+              DefaultTextStyle.of(context).style,
+            ),
             shape: widget.shape,
             child: widget.child,
           ),
