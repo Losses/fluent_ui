@@ -10,9 +10,9 @@ import 'package:flutter/foundation.dart';
 class ToggleButton extends StatelessWidget {
   /// Creates a toggle button.
   const ToggleButton({
-    super.key,
     required this.checked,
     required this.onChanged,
+    super.key,
     this.child,
     this.style,
     this.semanticLabel,
@@ -47,14 +47,13 @@ class ToggleButton extends StatelessWidget {
     super.debugFillProperties(properties);
     properties
       ..add(FlagProperty('checked', value: checked, ifFalse: 'unchecked'))
-      ..add(
-        ObjectFlagProperty('onChanged', onChanged, ifNull: 'disabled'),
-      )
+      ..add(ObjectFlagProperty('onChanged', onChanged, ifNull: 'disabled'))
       ..add(DiagnosticsProperty<ToggleButtonThemeData>('style', style))
       ..add(StringProperty('semanticLabel', semanticLabel))
       ..add(ObjectFlagProperty<FocusNode>.has('focusNode', focusNode))
       ..add(
-          FlagProperty('autofocus', value: autofocus, ifFalse: 'manual focus'));
+        FlagProperty('autofocus', value: autofocus, ifFalse: 'manual focus'),
+      );
   }
 
   @override
@@ -77,42 +76,41 @@ class ToggleButton extends StatelessWidget {
 /// Values specified here are used for [ToggleButton] properties that are not
 /// given an explicit non-null value.
 class ToggleButtonTheme extends InheritedTheme {
-  /// Creates a toggle button theme that controls the configurations for
-  /// [ToggleButton].
+  /// Creates a theme that controls how descendant [ToggleButton]s should
+  /// look like.
   const ToggleButtonTheme({
-    super.key,
     required this.data,
     required super.child,
+    super.key,
   });
 
   /// The properties for descendant [ToggleButton] widgets.
   final ToggleButtonThemeData data;
 
-  /// Creates a button theme that controls how descendant [ToggleButton]s should
-  /// look like, and merges in the current toggle button theme, if any.
+  /// Creates a theme that merges the nearest [ToggleButtonTheme] with [data].
   static Widget merge({
-    Key? key,
     required ToggleButtonThemeData data,
     required Widget child,
+    Key? key,
   }) {
-    return Builder(builder: (BuildContext context) {
-      return ToggleButtonTheme(
-        key: key,
-        data: _getInheritedThemeData(context).merge(data),
-        child: child,
-      );
-    });
+    return Builder(
+      builder: (context) {
+        return ToggleButtonTheme(
+          key: key,
+          data: ToggleButtonTheme.of(context).merge(data),
+          child: child,
+        );
+      },
+    );
   }
 
-  static ToggleButtonThemeData _getInheritedThemeData(BuildContext context) {
-    final theme =
-        context.dependOnInheritedWidgetOfExactType<ToggleButtonTheme>();
-    return theme?.data ?? FluentTheme.of(context).toggleButtonTheme;
-  }
-
-  /// Returns the [data] from the closest [ToggleButtonTheme] ancestor. If there is
-  /// no ancestor, it returns [FluentThemeData.toggleButtonTheme]. Applications can assume
-  /// that the returned value will not be null.
+  /// Returns the closest [ToggleButtonThemeData] which encloses the given
+  /// context.
+  ///
+  /// Resolution order:
+  /// 1. Defaults from [ToggleButtonThemeData.standard]
+  /// 2. Global theme from [FluentThemeData.toggleButtonTheme]
+  /// 3. Local [ToggleButtonTheme] ancestor
   ///
   /// Typical usage is as follows:
   ///
@@ -120,9 +118,13 @@ class ToggleButtonTheme extends InheritedTheme {
   /// ToggleButtonThemeData theme = ToggleButtonTheme.of(context);
   /// ```
   static ToggleButtonThemeData of(BuildContext context) {
-    return ToggleButtonThemeData.standard(FluentTheme.of(context)).merge(
-      _getInheritedThemeData(context),
-    );
+    assert(debugCheckHasFluentTheme(context));
+    final theme = FluentTheme.of(context);
+    final inheritedTheme = context
+        .dependOnInheritedWidgetOfExactType<ToggleButtonTheme>();
+    return ToggleButtonThemeData.standard(
+      theme,
+    ).merge(theme.toggleButtonTheme).merge(inheritedTheme?.data);
   }
 
   @override
@@ -135,51 +137,63 @@ class ToggleButtonTheme extends InheritedTheme {
       data != oldWidget.data;
 }
 
+/// Theme data for [ToggleButton] widgets.
+///
+/// This class defines the styles for toggle buttons in their checked
+/// and unchecked states.
 @immutable
 class ToggleButtonThemeData with Diagnosticable {
+  /// The style applied when the toggle button is checked.
   final ButtonStyle? checkedButtonStyle;
+
+  /// The style applied when the toggle button is unchecked.
   final ButtonStyle? uncheckedButtonStyle;
 
+  /// Creates toggle button theme data.
   const ToggleButtonThemeData({
     this.checkedButtonStyle,
     this.uncheckedButtonStyle,
   });
 
+  /// Creates the standard [ToggleButtonThemeData] based on the given [theme].
   factory ToggleButtonThemeData.standard(FluentThemeData theme) {
     return ToggleButtonThemeData(
       checkedButtonStyle: ButtonStyle(
         backgroundColor: WidgetStateProperty.resolveWith(
-          (states) => ButtonThemeData.checkedInputColor(
-            theme,
-            states,
-          ),
+          (states) => ButtonThemeData.checkedInputColor(theme, states),
         ),
         shape: WidgetStateProperty.resolveWith(
           (states) => FilledButton.shapeBorder(theme, states),
         ),
         foregroundColor: WidgetStateProperty.resolveWith(
-          (states) => FilledButton.foregroundColor(
-            theme,
-            states,
-          ),
+          (states) => FilledButton.foregroundColor(theme, states),
         ),
       ),
     );
   }
 
+  /// Linearly interpolates between two [ToggleButtonThemeData] objects.
   static ToggleButtonThemeData lerp(
     ToggleButtonThemeData? a,
     ToggleButtonThemeData? b,
     double t,
   ) {
     return ToggleButtonThemeData(
-      checkedButtonStyle:
-          ButtonStyle.lerp(a?.checkedButtonStyle, b?.checkedButtonStyle, t),
-      uncheckedButtonStyle:
-          ButtonStyle.lerp(a?.uncheckedButtonStyle, b?.uncheckedButtonStyle, t),
+      checkedButtonStyle: ButtonStyle.lerp(
+        a?.checkedButtonStyle,
+        b?.checkedButtonStyle,
+        t,
+      ),
+      uncheckedButtonStyle: ButtonStyle.lerp(
+        a?.uncheckedButtonStyle,
+        b?.uncheckedButtonStyle,
+        t,
+      ),
     );
   }
 
+  /// Merges this [ToggleButtonThemeData] with another, with the other taking
+  /// precedence.
   ToggleButtonThemeData merge(ToggleButtonThemeData? other) {
     if (other == null) return this;
     return ToggleButtonThemeData(
@@ -192,9 +206,17 @@ class ToggleButtonThemeData with Diagnosticable {
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
     properties
-      ..add(DiagnosticsProperty<ButtonStyle>(
-          'checkedButtonStyle', checkedButtonStyle))
-      ..add(DiagnosticsProperty<ButtonStyle>(
-          'uncheckedButtonStyle', uncheckedButtonStyle));
+      ..add(
+        DiagnosticsProperty<ButtonStyle>(
+          'checkedButtonStyle',
+          checkedButtonStyle,
+        ),
+      )
+      ..add(
+        DiagnosticsProperty<ButtonStyle>(
+          'uncheckedButtonStyle',
+          uncheckedButtonStyle,
+        ),
+      );
   }
 }

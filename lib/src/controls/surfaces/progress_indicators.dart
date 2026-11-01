@@ -3,23 +3,47 @@ import 'dart:math' as math;
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 
-const double _kMinProgressRingIndicatorSize = 36.0;
-const double _kMinProgressBarWidth = 130.0;
+const double _kMinProgressRingIndicatorSize = 36;
+const double _kMinProgressBarWidth = 130;
 
-/// A progress control provides feedback to the user that a long-running
-/// operation is underway. It can mean that the user cannot interact with the
-/// app when the progress indicator is visible, and can also indicate how long
-/// the wait time might be.
+/// A linear progress indicator that shows operation progress.
 ///
-/// It can be determinate or indeterminate:
+/// Progress bars provide visual feedback about ongoing operations, helping
+/// users understand that the app is working and approximately how long they
+/// might need to wait.
 ///
-/// ![Determinate Progress Bar](https://docs.microsoft.com/en-us/windows/uwp/design/controls-and-patterns/images/progressbar-determinate.png)
-/// ![Indeterminate Progress Bar](https://docs.microsoft.com/en-us/windows/uwp/design/controls-and-patterns/images/progressbar-indeterminate.gif)
+/// The progress bar can operate in two modes:
+///
+/// * **Determinate** - Shows specific progress from 0-100%. Use when you can
+///   measure or estimate the operation's progress.
+///
+/// ![Determinate Progress Bar](https://learn.microsoft.com/en-us/windows/apps/design/controls/images/progressbar-determinate.png)
+///
+/// * **Indeterminate** - Shows an animation without specific progress. Use when
+///   the operation duration is unknown.
+///
+/// ![Indeterminate Progress Bar](https://learn.microsoft.com/en-us/windows/apps/design/controls/images/progressbar-indeterminate.gif)
+///
+/// {@tool snippet}
+/// This example shows a determinate progress bar:
+///
+/// ```dart
+/// ProgressBar(value: 75)
+/// ```
+/// {@end-tool}
+///
+/// {@tool snippet}
+/// This example shows an indeterminate progress bar:
+///
+/// ```dart
+/// ProgressBar()
+/// ```
+/// {@end-tool}
 ///
 /// See also:
 ///
-///   * <https://learn.microsoft.com/en-us/windows/apps/design/controls/progress-controls#progressbar>
-///   * [ProgressRing], a progress widget that shows progress in a ring.
+///  * [ProgressRing], a circular progress indicator
+///  * <https://learn.microsoft.com/en-us/windows/apps/design/controls/progress-controls>
 class ProgressBar extends StatefulWidget {
   /// Creates a new progress bar.
   ///
@@ -33,8 +57,8 @@ class ProgressBar extends StatefulWidget {
     this.semanticLabel,
     this.backgroundColor,
     this.activeColor,
-  })  : assert(value == null || value >= 0 && value <= 100),
-        assert(strokeWidth >= 0);
+  }) : assert(value == null || value >= 0 && value <= 100),
+       assert(strokeWidth >= 0);
 
   /// The current value of the indicator. If non-null, a determinate progress
   /// bar is created:
@@ -76,7 +100,8 @@ class ProgressBar extends StatefulWidget {
 
 class _ProgressBarState extends State<ProgressBar>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late final AnimationController _controller;
+  final _animationState = _ProgressBarAnimationState();
 
   @override
   void initState() {
@@ -104,14 +129,12 @@ class _ProgressBarState extends State<ProgressBar>
     super.dispose();
   }
 
-  double p1 = 0, p2 = 0;
-  double idleFrames = 15, cycle = 1, idle = 1;
-  double lastValue = 0;
-
   @override
   Widget build(BuildContext context) {
     assert(debugCheckHasFluentTheme(context));
+    assert(debugCheckHasDirectionality(context));
     final theme = FluentTheme.of(context);
+    final direction = Directionality.of(context);
     return Container(
       height: widget.strokeWidth,
       constraints: const BoxConstraints(minWidth: _kMinProgressBarWidth),
@@ -119,104 +142,124 @@ class _ProgressBarState extends State<ProgressBar>
         label: widget.semanticLabel,
         value: widget.value?.toStringAsFixed(2),
         maxValueLength: 100,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            var deltaValue = _controller.value - lastValue;
-            lastValue = _controller.value;
-            if (deltaValue < 0) deltaValue++; // repeat
-            return CustomPaint(
-              painter: _ProgressBarPainter(
-                value: widget.value == null ? null : widget.value! / 100,
-                strokeWidth: widget.strokeWidth,
-                activeColor: widget.activeColor ??
-                    theme.accentColor.defaultBrushFor(theme.brightness),
-                backgroundColor:
-                    widget.backgroundColor ?? theme.inactiveBackgroundColor,
-                p1: p1,
-                p2: p2,
-                idleFrames: idleFrames,
-                cycle: cycle,
-                idle: idle,
-                deltaValue: deltaValue,
-                onUpdate: (values) {
-                  p1 = values[0];
-                  p2 = values[1];
-                  idleFrames = values[2];
-                  cycle = values[3];
-                  idle = values[4];
-                },
-              ),
-            );
-          },
+        child: CustomPaint(
+          painter: _ProgressBarPainter(
+            animation: _controller,
+            animationState: _animationState,
+            value: widget.value == null ? null : widget.value! / 100,
+            strokeWidth: widget.strokeWidth,
+            activeColor:
+                widget.activeColor ??
+                theme.accentColor.defaultBrushFor(theme.brightness),
+            backgroundColor:
+                widget.backgroundColor ?? theme.inactiveBackgroundColor,
+            textDirection: direction,
+          ),
         ),
       ),
     );
   }
 }
 
+class _ProgressBarAnimationState {
+  double p1 = 0;
+  double p2 = 0;
+  double idleFrames = 15;
+  double cycle = 1;
+  double idle = 1;
+  double lastValue = 0;
+
+  double deltaFor(double value) {
+    var delta = value - lastValue;
+    lastValue = value;
+    if (delta < 0) delta++; // repeat
+    return delta;
+  }
+}
+
 class _ProgressBarPainter extends CustomPainter {
-  static const _step1 = 2.7, _step2 = 4.5, _velocityScale = 0.8;
+  static const _step1 = 2.7;
+  static const _step2 = 4.5;
+  static const _velocityScale = 0.8;
   static const _short = 0.4; // percentage of short line (0..1)
   static const _long = 80 / 130; // percentage of long line (0..1)
 
-  double p1, p2, idleFrames, cycle, idle, deltaValue;
-
-  final ValueChanged<List<double>> onUpdate;
-
+  final Animation<double> animation;
+  final _ProgressBarAnimationState animationState;
   final double strokeWidth;
   final Color backgroundColor;
   final Color activeColor;
-
+  final TextDirection textDirection;
   final double? value;
+  final Paint _backgroundPaint;
+  final Paint _activePaint;
 
   _ProgressBarPainter({
-    required this.p1,
-    required this.p2,
-    required this.idle,
-    required this.cycle,
-    required this.idleFrames,
-    required this.deltaValue,
-    required this.onUpdate,
+    required this.animation,
+    required this.animationState,
     required this.strokeWidth,
     required this.backgroundColor,
     required this.activeColor,
+    required this.textDirection,
     required this.value,
-  });
+  }) : _backgroundPaint = Paint()
+         ..color = backgroundColor
+         ..strokeWidth = strokeWidth
+         ..style = PaintingStyle.stroke
+         ..strokeCap = StrokeCap.round
+         ..strokeJoin = StrokeJoin.round,
+       _activePaint = Paint()
+         ..color = activeColor
+         ..strokeWidth = strokeWidth
+         ..style = PaintingStyle.stroke
+         ..strokeCap = StrokeCap.round
+         ..strokeJoin = StrokeJoin.round,
+       super(repaint: animation);
+
+  static double _calcVelocity(double position, double deltaValue) {
+    return (1 + math.cos(math.pi * position - (math.pi / 2)) * _velocityScale) *
+        deltaValue;
+  }
+
+  void _drawLine(
+    Canvas canvas,
+    Size size,
+    Offset xy1,
+    Offset xy2,
+    Paint paint,
+  ) {
+    xy1 += Offset(strokeWidth / 2, 0);
+    xy1 = xy1.clamp(Offset.zero, Offset(size.width, size.height));
+    xy2 = xy2.clamp(xy1, Offset(size.width, size.height));
+    canvas.drawLine(xy1, xy2, paint);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    size = Size(size.width - strokeWidth / 2, size.height - strokeWidth / 2);
-
-    void drawLine(Offset xy1, Offset xy2, Color color) {
-      xy1 += Offset(strokeWidth / 2, 0);
-      xy1 = xy1.clamp(Offset.zero, Offset(size.width, size.height));
-      xy2 = xy2.clamp(xy1, Offset(size.width, size.height));
-
-      canvas.drawLine(
-        xy1,
-        xy2,
-        Paint()
-          ..color = color
-          ..strokeWidth = strokeWidth
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round,
-      );
+    if (textDirection == TextDirection.rtl) {
+      canvas.translate(size.width, 0);
+      canvas.scale(-1, 1);
     }
 
+    size = Size(size.width - strokeWidth / 2, size.height - strokeWidth / 2);
+    if (size.width < 0 || size.height < 0) return;
+
     // background line
-    drawLine(
+    _drawLine(
+      canvas,
+      size,
       Offset(0, size.height),
       Offset(size.width, size.height),
-      backgroundColor,
+      _backgroundPaint,
     );
 
     if (value != null) {
-      drawLine(
+      _drawLine(
+        canvas,
+        size,
         Offset(0, size.height),
-        Offset(value!.clamp(0.0, 1.0) * size.width, size.height),
-        activeColor,
+        Offset(clampDouble(value!, 0, 1) * size.width, size.height),
+        _activePaint,
       );
       return;
     }
@@ -225,67 +268,95 @@ class _ProgressBarPainter extends CustomPainter {
     // https://gist.github.com/raitonoberu/21dacaee725806b60ddb45ec68147d30
     // https://github.com/raitonoberu
 
-    void update() {
-      onUpdate([p1, p2, idleFrames, cycle, idle]);
+    final deltaValue = animationState.deltaFor(animation.value);
+    final v1 = _calcVelocity(animationState.p1, deltaValue);
+    final v2 = _calcVelocity(animationState.p2, deltaValue);
+
+    if (animationState.cycle == 1) {
+      // short line
+      animationState.p2 = math.min(animationState.p2 + _step1 * v2, 1);
+      if (animationState.p2 - animationState.p1 >= _short ||
+          animationState.p2 == 1) {
+        animationState.p1 = math.min(animationState.p1 + _step1 * v1, 1);
+      }
+    }
+    if (animationState.cycle == -1) {
+      // long line
+      animationState.p2 = math.min(animationState.p2 + _step2 * v2, 1);
+      if (animationState.p2 - animationState.p1 >= _long ||
+          animationState.p2 == 1) {
+        animationState.p1 = math.min(animationState.p1 + _step2 * v1, 1);
+      }
+    }
+    if (animationState.p1 == 1) {
+      // the end reached
+      animationState.idle = animationState.idleFrames;
+      animationState.cycle *= -1;
+      animationState.p1 = 0;
+      animationState.p2 = 0;
     }
 
-    Offset coords(double percentage) {
-      return Offset(
-        size.width * percentage,
-        size.height,
+    if (animationState.idle != 0) {
+      _drawLine(
+        canvas,
+        size,
+        Offset(size.width * animationState.p1, size.height),
+        Offset(size.width * animationState.p2, size.height),
+        _activePaint,
       );
     }
-
-    double calcVelocity(double p) {
-      return (1 + math.cos(math.pi * p - (math.pi / 2)) * _velocityScale) *
-          deltaValue;
-    }
-
-    final v1 = calcVelocity(p1);
-    final v2 = calcVelocity(p2);
-
-    if (cycle == 1) {
-      // short line
-      p2 = math.min(p2 + _step1 * v2, 1);
-      if (p2 - p1 >= _short || p2 == 1) p1 = math.min(p1 + _step1 * v1, 1);
-    }
-    if (cycle == -1) {
-      // long line
-      p2 = math.min(p2 + _step2 * v2, 1);
-      if (p2 - p1 >= _long || p2 == 1) p1 = math.min(p1 + _step2 * v1, 1);
-    }
-    if (p1 == 1) {
-      // the end reached
-      idle = idleFrames;
-      cycle *= -1;
-      p1 = 0;
-      p2 = 0;
-    }
-    update();
-
-    if (idle != 0) drawLine(coords(p1), coords(p2), activeColor);
   }
 
   @override
-  bool shouldRepaint(_ProgressBarPainter oldDelegate) => true;
+  bool shouldRepaint(_ProgressBarPainter oldDelegate) =>
+      strokeWidth != oldDelegate.strokeWidth ||
+      backgroundColor != oldDelegate.backgroundColor ||
+      activeColor != oldDelegate.activeColor ||
+      textDirection != oldDelegate.textDirection ||
+      value != oldDelegate.value;
 
   @override
   bool shouldRebuildSemantics(_ProgressBarPainter oldDelegate) => false;
 }
 
-/// A progress control provides feedback to the user that a long-running
-/// operation is underway. It can mean that the user cannot interact with the
-/// app when the progress indicator is visible, and can also indicate how long
-/// the wait time might be.
+/// A circular progress indicator that shows operation progress.
 ///
-/// It can be determinate or indeterminate.
+/// Progress rings provide visual feedback about ongoing operations in a
+/// compact, circular format. They're especially useful when horizontal space
+/// is limited or when you need a loading indicator.
+///
+/// The progress ring can operate in two modes:
+///
+/// * **Determinate** - Shows specific progress from 0-100%. Use when you can
+///   measure the operation's progress.
+///
 /// ![Determinate Progress Ring](https://learn.microsoft.com/en-us/windows/apps/design/controls/images/progress-ring.jpg)
+///
+/// * **Indeterminate** - Shows a spinning animation. Use when the operation
+///   duration is unknown.
+///
 /// ![Indeterminate Progress Ring](https://learn.microsoft.com/en-us/windows/apps/design/controls/images/progressring-indeterminate.gif)
+///
+/// {@tool snippet}
+/// This example shows an indeterminate progress ring:
+///
+/// ```dart
+/// ProgressRing()
+/// ```
+/// {@end-tool}
+///
+/// {@tool snippet}
+/// This example shows a determinate progress ring:
+///
+/// ```dart
+/// ProgressRing(value: 65)
+/// ```
+/// {@end-tool}
 ///
 /// See also:
 ///
-///   * <https://learn.microsoft.com/en-us/windows/apps/design/controls/progress-controls#progressring>
-///   * [ProgressBar], a progress widget that shows progress in a horizontal bar.
+///  * [ProgressBar], a linear progress indicator
+///  * <https://learn.microsoft.com/en-us/windows/apps/design/controls/progress-controls>
 class ProgressRing extends StatefulWidget {
   /// Creates progress ring.
   ///
@@ -345,48 +416,26 @@ class ProgressRing extends StatefulWidget {
       ..add(DoubleProperty('strokeWidth', strokeWidth, defaultValue: 4.5))
       ..add(ColorProperty('backgroundColor', backgroundColor))
       ..add(ColorProperty('activeColor', activeColor))
-      ..add(FlagProperty(
-        'backwards',
-        value: backwards,
-        defaultValue: false,
-        ifFalse: 'forwards',
-      ));
+      ..add(
+        FlagProperty(
+          'backwards',
+          value: backwards,
+          defaultValue: false,
+          ifFalse: 'forwards',
+        ),
+      );
   }
 }
 
 class _ProgressRingState extends State<ProgressRing>
     with SingleTickerProviderStateMixin {
   static final TweenSequence<double> _startAngleTween = TweenSequence([
-    TweenSequenceItem(
-      tween: Tween<double>(
-        begin: 0,
-        end: 450,
-      ),
-      weight: 1,
-    ),
-    TweenSequenceItem(
-      tween: Tween<double>(
-        begin: 450,
-        end: 1080,
-      ),
-      weight: 1,
-    ),
+    TweenSequenceItem(tween: Tween<double>(begin: 0, end: 450), weight: 1),
+    TweenSequenceItem(tween: Tween<double>(begin: 450, end: 1080), weight: 1),
   ]);
   static final TweenSequence<double> _sweepAngleTween = TweenSequence([
-    TweenSequenceItem(
-      tween: Tween<double>(
-        begin: 0,
-        end: 180,
-      ),
-      weight: 1,
-    ),
-    TweenSequenceItem(
-      tween: Tween<double>(
-        begin: 180,
-        end: 0,
-      ),
-      weight: 1,
-    ),
+    TweenSequenceItem(tween: Tween<double>(begin: 0, end: 180), weight: 1),
+    TweenSequenceItem(tween: Tween<double>(begin: 180, end: 0), weight: 1),
   ]);
 
   late final AnimationController _controller;
@@ -429,23 +478,20 @@ class _ProgressRingState extends State<ProgressRing>
       child: Semantics(
         label: widget.semanticLabel,
         value: widget.value?.toStringAsFixed(2),
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: _RingPainter(
-                backgroundColor:
-                    widget.backgroundColor ?? theme.inactiveBackgroundColor,
-                value: widget.value,
-                color: widget.activeColor ??
-                    theme.accentColor.defaultBrushFor(theme.brightness),
-                strokeWidth: widget.strokeWidth,
-                startAngle: _startAngleTween.evaluate(_controller),
-                sweepAngle: _sweepAngleTween.evaluate(_controller),
-                backwards: widget.backwards,
-              ),
-            );
-          },
+        child: CustomPaint(
+          painter: _RingPainter(
+            animation: _controller,
+            startAngleTween: _startAngleTween,
+            sweepAngleTween: _sweepAngleTween,
+            backgroundColor:
+                widget.backgroundColor ?? theme.inactiveBackgroundColor,
+            value: widget.value,
+            color:
+                widget.activeColor ??
+                theme.accentColor.defaultBrushFor(theme.brightness),
+            strokeWidth: widget.strokeWidth,
+            backwards: widget.backwards,
+          ),
         ),
       ),
     );
@@ -453,22 +499,36 @@ class _ProgressRingState extends State<ProgressRing>
 }
 
 class _RingPainter extends CustomPainter {
+  final Animation<double> animation;
+  final TweenSequence<double> startAngleTween;
+  final TweenSequence<double> sweepAngleTween;
   final Color color;
   final Color backgroundColor;
   final double strokeWidth;
   final double? value;
-  final double startAngle, sweepAngle;
   final bool backwards;
+  final Paint _backgroundPaint;
+  final Paint _activePaint;
 
-  const _RingPainter({
+  _RingPainter({
+    required this.animation,
+    required this.startAngleTween,
+    required this.sweepAngleTween,
     required this.color,
     required this.backgroundColor,
     required this.strokeWidth,
     required this.value,
-    required this.startAngle,
-    required this.sweepAngle,
     required this.backwards,
-  });
+  }) : _backgroundPaint = Paint()
+         ..color = backgroundColor
+         ..style = PaintingStyle.stroke
+         ..strokeWidth = strokeWidth,
+       _activePaint = Paint()
+         ..color = color
+         ..strokeWidth = strokeWidth
+         ..strokeCap = StrokeCap.round
+         ..style = PaintingStyle.stroke,
+       super(repaint: animation);
 
   static const double _twoPi = math.pi * 2.0;
   static const double _epsilon = .001;
@@ -483,45 +543,42 @@ class _RingPainter extends CustomPainter {
     // adapted so that the stroke will be drawn inside the paint area.
     final offset = Offset(strokeWidth / 2, strokeWidth / 2);
     size = Size(size.width - strokeWidth, size.height - strokeWidth);
+    if (size.width < 0 || size.height < 0) return;
+
+    final rect = offset & size;
 
     // Background line
-    canvas.drawArc(
-      offset & size,
-      _startAngle,
-      100,
-      false,
-      Paint()
-        ..color = backgroundColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth,
-    );
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+    canvas.drawArc(rect, _startAngle, 100, false, _backgroundPaint);
     if (value == null) {
+      final startAngle = startAngleTween.evaluate(animation);
+      final sweepAngle = sweepAngleTween.evaluate(animation);
       canvas.drawArc(
-        offset & size,
+        rect,
         ((backwards ? -startAngle : startAngle) - 90) * _deg2Rad,
         sweepAngle * _deg2Rad,
         false,
-        paint,
+        _activePaint,
       );
     } else {
       canvas.drawArc(
-        offset & size,
+        rect,
         _startAngle,
-        (value! / 100).clamp(0, 1) * _sweep,
+        clampDouble(value! / 100, 0, 1) * _sweep,
         false,
-        paint,
+        _activePaint,
       );
     }
   }
 
   @override
   bool shouldRepaint(_RingPainter oldDelegate) =>
-      value == null || value != oldDelegate.value;
+      color != oldDelegate.color ||
+      backgroundColor != oldDelegate.backgroundColor ||
+      strokeWidth != oldDelegate.strokeWidth ||
+      value != oldDelegate.value ||
+      backwards != oldDelegate.backwards ||
+      startAngleTween != oldDelegate.startAngleTween ||
+      sweepAngleTween != oldDelegate.sweepAngleTween;
 
   @override
   bool shouldRebuildSemantics(_RingPainter oldDelegate) => false;

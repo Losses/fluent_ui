@@ -5,24 +5,19 @@ part of 'view.dart';
 ///
 /// See also:
 ///   * [NavigationView], used alongside this to navigate through pages
-///   * [NavigationAppBar], the app top bar
 class _NavigationBody extends StatefulWidget {
   /// Creates a navigation body.
   ///
   /// [index] must be greater than 0 and less than [children.length]
   const _NavigationBody({
-    // ignore: unused_element
-    super.key,
     required this.itemKey,
     this.paneBodyBuilder,
     this.transitionBuilder,
-    // ignore: unused_element
     this.animationCurve,
-    // ignore: unused_element
     this.animationDuration,
   });
 
-  final ValueKey<int>? itemKey;
+  final ValueKey<Object> itemKey;
 
   final NavigationContentBuilder? paneBodyBuilder;
 
@@ -77,104 +72,191 @@ class _NavigationBody extends StatefulWidget {
 }
 
 class _NavigationBodyState extends State<_NavigationBody> {
-  final _pageKey = GlobalKey<State<PageView>>();
-  PageController? _pageController;
+  final Map<Object, Widget> _pages = {};
+  final Set<Object> _keptAlive = {};
+  Object? _currentKey;
 
-  PageController get pageController => _pageController!;
+  void _keepAlive(Object key) => _keptAlive.add(key);
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final view = InheritedNavigationView.of(context);
-    final selected = view.pane?.selected ?? 0;
-
-    _pageController ??= PageController(initialPage: selected);
-
-    if (pageController.hasClients) {
-      if (view.previousItemIndex != selected ||
-          pageController.page != selected) {
-        pageController.jumpToPage(selected);
+  void _releaseKeepAlive(Object key) {
+    if (!_keptAlive.remove(key) || key == _currentKey) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && key != _currentKey && !_keptAlive.contains(key)) {
+        setState(() => _pages.remove(key));
       }
+    });
+  }
+
+  Widget _buildPage(BuildContext context, NavigationViewContext view) {
+    final paneBodyBuilder = widget.paneBodyBuilder;
+    if (paneBodyBuilder != null) {
+      return paneBodyBuilder.call(
+        view.pane?.selected != null ? view.pane!.selectedItem : null,
+        view.pane?.selected != null
+            ? FocusTraversalGroup(child: view.pane!.selectedItem.body!)
+            : null,
+      );
     }
+    return FocusTraversalGroup(
+      policy: WidgetOrderTraversalPolicy(),
+      child: view.pane!.selectedItem.body!,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     assert(debugCheckHasFluentTheme(context));
-    final view = InheritedNavigationView.of(context);
+    final view = NavigationViewContext.of(context);
     final theme = FluentTheme.of(context);
+
+    if (widget.paneBodyBuilder != null) {
+      return ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: _buildPage(context, view),
+      );
+    }
+
+    final pane = view.pane!;
+    final validPageKeys = <Object>{};
+    for (final (index, item) in pane.effectiveItems.indexed) {
+      final itemKey = item.key ?? index;
+      validPageKeys.add(itemKey);
+      if (_pages.containsKey(itemKey)) {
+        _pages[itemKey] = FocusTraversalGroup(
+          policy: WidgetOrderTraversalPolicy(),
+          child: item.body!,
+        );
+      }
+    }
+    _pages.removeWhere((pageKey, _) => !validPageKeys.contains(pageKey));
+    _keptAlive.removeWhere((pageKey) => !validPageKeys.contains(pageKey));
+
+    final key = widget.itemKey.value;
+    final previous = _currentKey;
+    if (previous != null && previous != key && !_keptAlive.contains(previous)) {
+      _pages.remove(previous);
+    }
+    _currentKey = key;
+    _pages[key] = _buildPage(context, view);
+
+    final duration = widget.animationDuration ?? theme.fastAnimationDuration;
+    final curve = widget.animationCurve ?? theme.animationCurve;
 
     return ColoredBox(
       color: theme.scaffoldBackgroundColor,
-      child: AnimatedSwitcher(
-        switchInCurve: widget.animationCurve ?? Curves.ease,
-        switchOutCurve: widget.animationCurve ?? Curves.ease,
-        duration: widget.animationDuration ?? const Duration(milliseconds: 300),
-        reverseDuration:
-            widget.animationDuration ?? const Duration(microseconds: 150),
-        layoutBuilder: (child, children) {
-          return SizedBox(child: child);
-        },
-        transitionBuilder: (child, animation) {
-          if (widget.transitionBuilder != null) {
-            return widget.transitionBuilder!(child, animation);
-          }
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          for (final entry in _pages.entries)
+            _NavigationPageEntry(
+              key: ValueKey(entry.key),
+              active: entry.key == key,
+              duration: duration,
+              curve: curve,
+              transitionBuilder: widget.transitionBuilder,
+              isTop: view.displayMode == PaneDisplayMode.top,
+              fromLeft: view.previousItemIndex > (view.pane?.selected ?? 0),
+              onKeepAlive: () => _keepAlive(entry.key),
+              onReleaseKeepAlive: () => _releaseKeepAlive(entry.key),
+              child: entry.value,
+            ),
+        ],
+      ),
+    );
+  }
+}
 
-          var isTop = view.displayMode == PaneDisplayMode.top;
+class _NavigationPageEntry extends StatefulWidget {
+  const _NavigationPageEntry({
+    required this.active,
+    required this.duration,
+    required this.curve,
+    required this.transitionBuilder,
+    required this.isTop,
+    required this.fromLeft,
+    required this.onKeepAlive,
+    required this.onReleaseKeepAlive,
+    required this.child,
+    super.key,
+  });
 
-          if (isTop) {
-            // Other transtitions other than default is only applied to top nav
-            // when clicking overflow on topnav, transition is from bottom
-            // otherwise if prevItem is on left side of nextActualItem, transition is from left
-            //           if prevItem is on right side of nextActualItem, transition is from right
-            // click on Settings item is considered Default
-            return HorizontalSlidePageTransition(
-              animation: animation,
-              fromLeft: view.previousItemIndex < (view.pane?.selected ?? 0),
-              child: child,
+  final bool active;
+  final Duration duration;
+  final Curve curve;
+  final AnimatedSwitcherTransitionBuilder? transitionBuilder;
+  final bool isTop;
+  final bool fromLeft;
+  final VoidCallback onKeepAlive;
+  final VoidCallback onReleaseKeepAlive;
+  final Widget child;
+
+  @override
+  State<_NavigationPageEntry> createState() => _NavigationPageEntryState();
+}
+
+class _NavigationPageEntryState extends State<_NavigationPageEntry>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+    value: widget.active ? 1 : 0,
+  );
+  Listenable? _keepAliveHandle;
+
+  @override
+  void didUpdateWidget(_NavigationPageEntry oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _controller.duration = widget.duration;
+    if (widget.active && !oldWidget.active) _controller.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _keepAliveHandle?.removeListener(widget.onReleaseKeepAlive);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final child = NotificationListener<KeepAliveNotification>(
+      onNotification: (notification) {
+        if (!identical(_keepAliveHandle, notification.handle)) {
+          _keepAliveHandle?.removeListener(widget.onReleaseKeepAlive);
+          _keepAliveHandle = notification.handle
+            ..addListener(widget.onReleaseKeepAlive);
+          widget.onKeepAlive();
+        }
+        return true;
+      },
+      child: RepaintBoundary(child: widget.child),
+    );
+
+    return Offstage(
+      offstage: !widget.active,
+      child: TickerMode(
+        enabled: widget.active,
+        child: AnimatedBuilder(
+          animation: _controller,
+          child: child,
+          builder: (context, child) {
+            final animation = CurvedAnimation(
+              parent: _controller,
+              curve: widget.curve,
             );
-          }
-
-          return EntrancePageTransition(
-            animation: animation,
-            child: child,
-          );
-        },
-        child: () {
-          final paneBodyBuilder = widget.paneBodyBuilder;
-          if (paneBodyBuilder != null) {
-            return paneBodyBuilder.call(
-              view.pane?.selected != null ? view.pane!.selectedItem : null,
-              view.pane?.selected != null
-                  ? FocusTraversalGroup(
-                      child: view.pane!.selectedItem.body,
-                    )
-                  : null,
-            );
-          } else {
-            return KeyedSubtree(
-              key: widget.itemKey,
-              child: PageView.builder(
-                key: _pageKey,
-                physics: const NeverScrollableScrollPhysics(),
-                controller: pageController,
-                itemCount: view.pane!.effectiveItems.length,
-                itemBuilder: (context, index) {
-                  final isSelected = view.pane!.selected == index;
-                  final item = view.pane!.effectiveItems[index];
-
-                  return ExcludeFocus(
-                    excluding: !isSelected,
-                    child: FocusTraversalGroup(
-                      policy: WidgetOrderTraversalPolicy(),
-                      child: item.body,
-                    ),
-                  );
-                },
-              ),
-            );
-          }
-        }(),
+            if (widget.transitionBuilder case final builder?) {
+              return builder(child!, animation);
+            }
+            if (widget.isTop) {
+              return HorizontalSlidePageTransition(
+                animation: animation,
+                fromLeft: widget.fromLeft,
+                child: child!,
+              );
+            }
+            return EntrancePageTransition(animation: animation, child: child!);
+          },
+        ),
       ),
     );
   }
@@ -183,110 +265,96 @@ class _NavigationBodyState extends State<_NavigationBody> {
 /// A widget that tells what's the the current state of a parent
 /// [NavigationView], if any.
 ///
+/// This provides context information about the navigation state to descendant
+/// widgets, including the current display mode, selected item, and navigation
+/// history for smooth indicator animations.
+///
 /// See also:
 ///
 ///  * [NavigationView], which provides the information for this
-class InheritedNavigationView extends InheritedWidget {
+class NavigationViewContext extends InheritedWidget {
   /// Creates an inherited navigation view.
-  const InheritedNavigationView({
-    super.key,
+  const NavigationViewContext({
     required super.child,
     required this.displayMode,
-    this.minimalPaneOpen = false,
-    this.pane,
-    this.previousItemIndex = 0,
-    this.currentItemIndex = -1,
-    this.isTransitioning = false,
+    required this.isMinimalPaneOpen,
+    required this.isCompactOverlayOpen,
+    required this.pane,
+    required this.previousItemIndex,
+    required this.isTransitioning,
+    required this.toggleButtonPosition,
+    required this.canPop,
+    super.key,
   });
+
+  factory NavigationViewContext.copy({
+    required NavigationViewContext parent,
+    required Widget child,
+  }) {
+    return NavigationViewContext(
+      displayMode: parent.displayMode,
+      isMinimalPaneOpen: parent.isMinimalPaneOpen,
+      isCompactOverlayOpen: parent.isCompactOverlayOpen,
+      pane: parent.pane,
+      previousItemIndex: parent.previousItemIndex,
+      isTransitioning: parent.isTransitioning,
+      toggleButtonPosition: parent.toggleButtonPosition,
+      canPop: parent.canPop,
+      child: child,
+    );
+  }
 
   /// The current pane display mode according to the current state.
   final PaneDisplayMode displayMode;
 
   /// Whether the minimal pane is open or not
-  final bool minimalPaneOpen;
+  final bool isMinimalPaneOpen;
+
+  final bool isCompactOverlayOpen;
 
   /// The current navigation pane, if any
   final NavigationPane? pane;
 
-  /// The previous index selected index.
+  /// The previous selected index.
   ///
-  /// Usually used by a [NavigationIndicator]s to display the animation from the
-  /// old item to the new one.
+  /// Used by [NavigationIndicator]s to animate from the old item to the new one.
+  /// This enables the "sticky" indicator effect where the indicator stretches
+  /// from the previous position to the new position.
   final int previousItemIndex;
 
-  /// Used by [NavigationIndicator] to know what's the current index of the
-  /// item
-  final int currentItemIndex;
-
   /// Whether the navigation panes are transitioning or not.
+  ///
+  /// When true, interactive features on pane items (like info badges) are
+  /// hidden to provide a cleaner transition animation.
   final bool isTransitioning;
 
-  static InheritedNavigationView? maybeOf(BuildContext context) {
-    return context
-        .dependOnInheritedWidgetOfExactType<InheritedNavigationView>();
+  /// The position of the toggle pane button.
+  final PaneToggleButtonPosition toggleButtonPosition;
+
+  /// Whether the navigation view can pop the current item.
+  final bool canPop;
+
+  /// Returns the closest [NavigationViewContext] ancestor, if any.
+  static NavigationViewContext? maybeOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<NavigationViewContext>();
   }
 
-  static InheritedNavigationView of(BuildContext context) {
+  /// Returns the closest [NavigationViewContext] ancestor.
+  ///
+  /// Throws if no ancestor is found.
+  static NavigationViewContext of(BuildContext context) {
     return maybeOf(context)!;
   }
 
-  static Widget merge({
-    Key? key,
-    required Widget child,
-    int? currentItemIndex,
-    NavigationPane? pane,
-    PaneDisplayMode? displayMode,
-    bool? minimalPaneOpen,
-    int? previousItemIndex,
-    bool? currentItemSelected,
-    bool? isTransitioning,
-  }) {
-    return Builder(builder: (context) {
-      final current = InheritedNavigationView.maybeOf(context);
-      return InheritedNavigationView(
-        key: key,
-        displayMode:
-            displayMode ?? current?.displayMode ?? PaneDisplayMode.open,
-        minimalPaneOpen: minimalPaneOpen ?? current?.minimalPaneOpen ?? false,
-        currentItemIndex: currentItemIndex ?? current?.currentItemIndex ?? -1,
-        pane: pane ?? current?.pane,
-        previousItemIndex: previousItemIndex ?? current?.previousItemIndex ?? 0,
-        isTransitioning: isTransitioning ?? current?.isTransitioning ?? false,
-        child: child,
-      );
-    });
-  }
-
   @override
-  bool updateShouldNotify(covariant InheritedNavigationView oldWidget) {
+  bool updateShouldNotify(covariant NavigationViewContext oldWidget) {
     return oldWidget.displayMode != displayMode ||
-        oldWidget.minimalPaneOpen != minimalPaneOpen ||
+        oldWidget.isMinimalPaneOpen != isMinimalPaneOpen ||
+        oldWidget.isCompactOverlayOpen != isCompactOverlayOpen ||
         oldWidget.pane != pane ||
         oldWidget.previousItemIndex != previousItemIndex ||
-        oldWidget.currentItemIndex != currentItemIndex ||
-        oldWidget.isTransitioning != isTransitioning;
-  }
-}
-
-/// Makes the [GlobalKey]s for [PaneItem]s accesible on the scope.
-class PaneItemKeys extends InheritedWidget {
-  const PaneItemKeys({
-    super.key,
-    required super.child,
-    required this.keys,
-  });
-
-  final Map<int, GlobalKey> keys;
-
-  /// Gets the item global key based on the index
-  static GlobalKey of(int index, BuildContext context) {
-    final reference =
-        context.dependOnInheritedWidgetOfExactType<PaneItemKeys>()!;
-    return reference.keys[index]!;
-  }
-
-  @override
-  bool updateShouldNotify(PaneItemKeys oldWidget) {
-    return keys != oldWidget.keys;
+        oldWidget.isTransitioning != isTransitioning ||
+        oldWidget.toggleButtonPosition != toggleButtonPosition ||
+        oldWidget.canPop != canPop;
   }
 }

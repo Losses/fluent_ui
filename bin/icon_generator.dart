@@ -17,7 +17,7 @@ import 'package:recase/recase.dart';
 ///   i recommend `https://convertio.co/woff-ttf/` because i already used it and
 ///   it works fine
 /// - Rename the ttf file to `FluentIcons.ttf` and place it on `fonts/`
-/// - Run the generator with `dart bin/icon_generator.dart.dart` while being
+/// - Run the generator with `dart bin/icon_generator.dart` while being
 ///   on the `lib/` directory as PWD
 /// - Enjoy
 void main(List<String> args) async {
@@ -26,38 +26,36 @@ void main(List<String> args) async {
     return;
   }
 
-  final iconsFile = File('bin/fabric-icons.json');
+  final iconsFile = File('bin/windows_icons/segoeicons.json');
   final iconsString = await iconsFile.readAsString();
   final iconsJson = json.decode(iconsString) as Map<String, dynamic>;
-  final glyphs = (iconsJson['glyphs'] as List<dynamic>)
-      .map<Glyph>(mapToGlyph)
-      .toSet()
-      .toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
+  final glyphs =
+      (iconsJson['glyphs'] as List<dynamic>)
+          .map<Glyph>(mapToGlyph)
+          .toSet()
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
 
   final dartFileBuffer = StringBuffer(fileHeader);
   for (final glyph in glyphs) {
     dartFileBuffer.writeln(
-      "  static const IconData ${glyph.name} = IconData(0x${glyph.codepoint}, fontFamily: 'FluentIcons', fontPackage: 'fluent_ui',);\n",
+      "  static const IconData ${glyph.name} = IconData(0x${glyph.codepoint}, fontFamily: 'SegoeIcons', fontPackage: 'fluent_ui',);\n",
     );
   }
 
   // NEW Map of all glyphs (adds iteration capabilities)
   dartFileBuffer.writeln('  static const Map<String, IconData> allIcons = {');
   for (final glyph in glyphs) {
-    dartFileBuffer.writeln(
-      "    '${glyph.name}': ${glyph.name},",
-    );
+    dartFileBuffer.writeln("    '${glyph.name}': ${glyph.name},");
   }
   dartFileBuffer
     ..writeln('  };')
     ..writeln('}');
-  final outputFile = File('lib/src/icons.dart');
-  final formatProcess = await Process.start(
-    'flutter',
-    ['format', outputFile.path],
-    runInShell: true,
-  );
+  final outputFile = File('lib/src/windows_icons.dart');
+  final formatProcess = await Process.start('flutter', [
+    'format',
+    outputFile.path,
+  ], runInShell: true);
   stdout.addStream(formatProcess.stdout);
   await outputFile.writeAsString(dartFileBuffer.toString());
 }
@@ -67,10 +65,7 @@ Glyph mapToGlyph(dynamic item) {
   final name = ReCase(jsonItem['name']!).snakeCase;
   final String codepoint = jsonItem['unicode']!.toLowerCase();
 
-  return Glyph(
-    name: sanitizeName(name),
-    codepoint: codepoint,
-  );
+  return Glyph(name: sanitizeName(name), codepoint: codepoint);
 }
 
 /// This function will need to be updated if any icon with an incompatible
@@ -96,12 +91,12 @@ String get pathSeparator => Platform.isWindows ? '\\' : '/';
 const String fileHeader = """
 // GENERATED FILE, DO NOT EDIT
 
-// ignore_for_file: constant_identifier_names
+// ignore_for_file: constant_identifier_names, public_member_api_docs
 
 import 'package:flutter/widgets.dart' show IconData;
 
-class FluentIcons {
-  const FluentIcons._();
+class WindowsIcons {
+  const WindowsIcons._();
 
 """;
 
@@ -109,10 +104,7 @@ class Glyph {
   final String name;
   final String codepoint;
 
-  const Glyph({
-    required this.name,
-    required this.codepoint,
-  });
+  const Glyph({required this.name, required this.codepoint});
 
   @override
   int get hashCode => name.hashCode;

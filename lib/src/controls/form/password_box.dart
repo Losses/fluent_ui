@@ -1,5 +1,11 @@
 import 'package:fluent_ui/fluent_ui.dart';
 
+/// The mode of the password reveal button.
+///
+/// See also:
+///
+/// * [PasswordBox], which is the widget that uses this mode.
+/// * [PasswordFormBox], which is the form field that contains a [PasswordBox].
 enum PasswordRevealMode {
   /// The password reveal button is visible. The password is not obscured while
   /// the button is pressed.
@@ -26,7 +32,7 @@ enum PasswordRevealMode {
   visible,
 }
 
-/// A fluent design input form for password.
+/// A Windows design input form for password.
 ///
 /// A password box is a text input box that conceals the characters typed into
 /// it for the purpose of privacy. A password box looks like a text box, except
@@ -37,9 +43,9 @@ enum PasswordRevealMode {
 ///
 /// See also:
 ///
-///  * <https://learn.microsoft.com/en-us/windows/apps/design/controls/password-box>
 ///  * [PasswordRevealMode], the different modes that the password box can have
 ///  * [TextBox], the underlaying widget that renders the text box
+///  * <https://learn.microsoft.com/en-us/windows/apps/design/controls/password-box>
 class PasswordBox extends StatefulWidget {
   /// Controls the text being edited.
   ///
@@ -123,12 +129,12 @@ class PasswordBox extends StatefulWidget {
   ///
   /// Defaults to having a rounded rectangle grey border and can be null to have
   /// no box decoration.
-  final BoxDecoration? decoration;
+  final WidgetStateProperty<BoxDecoration>? decoration;
 
   /// Controls the [BoxDecoration] of the box in front of the text input.
   ///
   /// If [highlightColor] is provided, this must not be provided
-  final BoxDecoration? foregroundDecoration;
+  final WidgetStateProperty<BoxDecoration>? foregroundDecoration;
 
   /// The highlight color of the text box.
   ///
@@ -170,7 +176,7 @@ class PasswordBox extends StatefulWidget {
   final EdgeInsetsGeometry padding;
 
   /// {@macro flutter.widgets.editableText.scrollPadding}
-  final EdgeInsets scrollPadding;
+  final EdgeInsetsGeometry scrollPadding;
 
   /// {@macro flutter.widgets.editableText.scrollController}
   final ScrollController? scrollController;
@@ -193,7 +199,7 @@ class PasswordBox extends StatefulWidget {
     this.leadingIcon,
     this.placeholderStyle,
     this.cursorWidth = 1.5,
-    this.cursorRadius = const Radius.circular(2.0),
+    this.cursorRadius = const Radius.circular(2),
     this.cursorHeight,
     this.cursorColor,
     this.showCursor,
@@ -209,7 +215,7 @@ class PasswordBox extends StatefulWidget {
     this.style,
     this.padding = kTextBoxPadding,
     this.scrollController,
-    this.scrollPadding = const EdgeInsets.all(20.0),
+    this.scrollPadding = const EdgeInsetsDirectional.all(20),
     this.scrollPhysics,
   });
 
@@ -342,18 +348,18 @@ class _PasswordBoxState extends State<PasswordBox> {
       suffix: _canPeek
           ? SmallIconButton(
               child: IconButton(
-                icon: const Icon(FluentIcons.red_eye),
+                icon: const WindowsIcon(WindowsIcons.red_eye),
                 // todo: half eye icon, like WinUI3 ?
                 onPressed: null,
                 onTapDown: widget.enabled
-                    ? () {
+                    ? (_) {
                         setState(() {
                           peek = true;
                         });
                       }
                     : null,
                 onTapUp: widget.enabled
-                    ? () {
+                    ? (_) {
                         setState(() {
                           peek = false;
                         });
@@ -449,7 +455,7 @@ class PasswordFormBox extends ControllableFormBox {
     super.controller,
     double cursorWidth = 2.0,
     double? cursorHeight,
-    Radius cursorRadius = const Radius.circular(2.0),
+    Radius cursorRadius = const Radius.circular(2),
     Color? cursorColor,
     VoidCallback? onEditingComplete,
     ValueChanged<String>? onFieldSubmitted,
@@ -458,45 +464,47 @@ class PasswordFormBox extends ControllableFormBox {
     String? placeholder,
     TextStyle? placeholderStyle,
     Widget? leadingIcon,
-  }) : super(builder: (FormFieldState<String> field) {
-          assert(debugCheckHasFluentTheme(field.context));
-          final theme = FluentTheme.of(field.context);
-          void onChangedHandler(String value) {
-            field.didChange(value);
-          }
+  }) : super(
+         builder: (field) {
+           assert(debugCheckHasFluentTheme(field.context));
+           final theme = FluentTheme.of(field.context);
+           void onChangedHandler(String value) {
+             field.didChange(value);
+           }
 
-          return UnmanagedRestorationScope(
-            bucket: field.bucket,
-            child: FormRow(
-              padding: EdgeInsets.zero,
-              error: (field.errorText == null) ? null : Text(field.errorText!),
-              child: PasswordBox(
-                revealMode: revealMode,
-                focusNode: focusNode,
-                autofocus: autofocus,
-                readOnly: readOnly,
-                showCursor: showCursor,
-                obscuringCharacter: obscuringCharacter,
-                controller: controller,
-                cursorColor: cursorColor,
-                cursorHeight: cursorHeight,
-                cursorRadius: cursorRadius,
-                cursorWidth: cursorWidth,
-                enabled: enabled,
-                onEditingComplete: onEditingComplete,
-                onSubmitted: onFieldSubmitted,
-                onChanged: onChangedHandler,
-                highlightColor: (field.errorText == null)
-                    ? highlightColor
-                    : errorHighlightColor ??
-                        Colors.red.defaultBrushFor(theme.brightness),
-                placeholder: placeholder,
-                placeholderStyle: placeholderStyle,
-                leadingIcon: leadingIcon,
-              ),
-            ),
-          );
-        });
+           return UnmanagedRestorationScope(
+             bucket: field.bucket,
+             child: FormRow(
+               padding: EdgeInsetsDirectional.zero,
+               error: (field.errorText == null) ? null : Text(field.errorText!),
+               child: PasswordBox(
+                 revealMode: revealMode,
+                 focusNode: focusNode,
+                 autofocus: autofocus,
+                 readOnly: readOnly,
+                 showCursor: showCursor,
+                 obscuringCharacter: obscuringCharacter,
+                 controller: controller,
+                 cursorColor: cursorColor,
+                 cursorHeight: cursorHeight,
+                 cursorRadius: cursorRadius,
+                 cursorWidth: cursorWidth,
+                 enabled: enabled,
+                 onEditingComplete: onEditingComplete,
+                 onSubmitted: onFieldSubmitted,
+                 onChanged: onChangedHandler,
+                 highlightColor: (field.errorText == null)
+                     ? highlightColor
+                     : errorHighlightColor ??
+                           Colors.red.defaultBrushFor(theme.brightness),
+                 placeholder: placeholder,
+                 placeholderStyle: placeholderStyle,
+                 leadingIcon: leadingIcon,
+               ),
+             ),
+           );
+         },
+       );
 
   @override
   FormFieldState<String> createState() => TextFormBoxState();

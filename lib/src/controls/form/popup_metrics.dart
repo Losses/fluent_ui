@@ -16,7 +16,7 @@ mixin PopupMetricsObserver<T extends StatefulWidget> on State<T> {
       media.devicePixelRatio,
       media.padding,
       media.viewPadding,
-      media.viewInsets
+      media.viewInsets,
     );
     if (_popupMetrics != null && _popupMetrics != metrics) {
       final invalidate = capturePopupInvalidation();

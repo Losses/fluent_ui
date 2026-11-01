@@ -1,6 +1,7 @@
-import 'package:example/widgets/card_highlight.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:example/widgets/code_snippet_card.dart';
 import 'package:example/widgets/page.dart';
+import 'package:fluent_ui/fluent_ui.dart';
+import 'package:material_ui/material_ui.dart' as m;
 
 class TilesPage extends StatefulWidget {
   const TilesPage({super.key});
@@ -10,7 +11,7 @@ class TilesPage extends StatefulWidget {
 }
 
 class _TilesPageState extends State<TilesPage> with PageMixin {
-  final shuffledIcons = FluentIcons.allIcons.values.toList()..shuffle();
+  final shuffledIcons = WindowsIcons.allIcons.values.toList()..shuffle();
 
   // first
   final firstController = ScrollController();
@@ -25,19 +26,20 @@ class _TilesPageState extends State<TilesPage> with PageMixin {
   final thirdController = ScrollController();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(final BuildContext context) {
     final theme = FluentTheme.of(context);
     return ScaffoldPage.scrollable(
       header: const PageHeader(title: Text('Tiles')),
       children: [
         description(
           content: const Text(
-            'A fluent-styled list tile. Usually used inside a ListView',
+            'A windows-styled list tile. Usually used inside a ListView',
           ),
         ),
         subtitle(content: const Text('Basic ListView with selectable tiles')),
-        CardHighlight(
-          codeSnippet: '''String selectedContact = '';
+        CodeSnippetCard(
+          codeSnippet: '''
+String selectedContact = '';
 
 const contacts = ['Kendall', 'Collins', ...];
 
@@ -50,7 +52,7 @@ ListView.builder(
       selected: selectedContact == contact,
       onSelectionChange: (v) => setState(() => selectedContact = contact),
     );
-  } 
+  }
 ),''',
           child: Container(
             height: 400,
@@ -64,12 +66,12 @@ ListView.builder(
               controller: firstController,
               shrinkWrap: true,
               itemCount: contacts.length,
-              itemBuilder: (context, index) {
+              itemBuilder: (final context, final index) {
                 final contact = contacts[index];
                 return ListTile.selectable(
                   title: Text(contact),
                   selected: firstSelected == contact,
-                  onSelectionChange: (v) {
+                  onSelectionChange: (final v) {
                     setState(() => firstSelected = contact);
                   },
                 );
@@ -80,8 +82,9 @@ ListView.builder(
         subtitle(
           content: const Text('ListViewItems with many properties applied'),
         ),
-        CardHighlight(
-          codeSnippet: '''List<String> selectedContacts = [];
+        CodeSnippetCard(
+          codeSnippet: '''
+List<String> selectedContacts = [];
 
 const contacts = ['Kendall', 'Collins', ...];
 
@@ -103,50 +106,52 @@ ListView.builder(
         });
       },
     );
-  } 
+  }
 ),''',
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              height: 400,
-              width: 350,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.resources.surfaceStrokeColorDefault,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 400,
+                width: 350,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: theme.resources.surfaceStrokeColorDefault,
+                  ),
+                ),
+                child: ListView.builder(
+                  controller: secondController,
+                  shrinkWrap: true,
+                  itemCount: contacts.length,
+                  itemBuilder: (final context, final index) {
+                    final contact = contacts[index];
+                    return ListTile.selectable(
+                      leading: const m.CircleAvatar(radius: 15),
+                      title: Text(contact),
+                      subtitle: const Text('With a custom subtitle'),
+                      trailing: Icon(shuffledIcons[index]),
+                      selectionMode: ListTileSelectionMode.multiple,
+                      selected: selected.contains(contact),
+                      onSelectionChange: (final selected) {
+                        setState(() {
+                          if (selected) {
+                            this.selected.add(contact);
+                          } else {
+                            this.selected.remove(contact);
+                          }
+                        });
+                      },
+                    );
+                  },
                 ),
               ),
-              child: ListView.builder(
-                controller: secondController,
-                shrinkWrap: true,
-                itemCount: contacts.length,
-                itemBuilder: (context, index) {
-                  final contact = contacts[index];
-                  return ListTile.selectable(
-                    leading: const CircleAvatar(radius: 15.0),
-                    title: Text(contact),
-                    subtitle: const Text('With a custom subtitle'),
-                    trailing: Icon(shuffledIcons[index]),
-                    selectionMode: ListTileSelectionMode.multiple,
-                    selected: selected.contains(contact),
-                    onSelectionChange: (selected) {
-                      setState(() {
-                        if (selected) {
-                          this.selected.add(contact);
-                        } else {
-                          this.selected.remove(contact);
-                        }
-                      });
-                    },
-                  );
-                },
-              ),
-            ),
-          ]),
+            ],
+          ),
         ),
-        subtitle(
-          content: const Text('ListViewItems with images'),
-        ),
-        CardHighlight(
-          codeSnippet: '''String selectedContact = '';
+        subtitle(content: const Text('ListViewItems with images')),
+        CodeSnippetCard(
+          codeSnippet: '''
+String selectedContact = '';
 
 const contacts = ['Kendall', 'Collins', ...];
 
@@ -171,57 +176,60 @@ ListView.builder(
       selected: selectedContact == contact,
       onSelectionChange: (v) => setState(() => selectedContact = contact),
     );
-  } 
+  }
 ),''',
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              height: 400,
-              width: 550,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.resources.surfaceStrokeColorDefault,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 400,
+                width: 550,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: theme.resources.surfaceStrokeColorDefault,
+                  ),
                 ),
-              ),
-              child: ListView.builder(
-                controller: thirdController,
-                shrinkWrap: true,
-                itemCount: contacts.length,
-                itemBuilder: (context, index) {
-                  final contact = contacts[index];
-                  return ListTile.selectable(
-                    leading: SizedBox(
-                      height: 100,
-                      child: AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: ColoredBox(
-                          color: Colors.accentColors[index ~/ 20],
-                          child: const Placeholder(),
+                child: ListView.builder(
+                  controller: thirdController,
+                  shrinkWrap: true,
+                  itemCount: contacts.length,
+                  itemBuilder: (final context, final index) {
+                    final contact = contacts[index];
+                    return ListTile.selectable(
+                      leading: SizedBox(
+                        height: 100,
+                        child: AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: ColoredBox(
+                            color: Colors.accentColors[index ~/ 20],
+                            child: const Placeholder(),
+                          ),
                         ),
                       ),
-                    ),
-                    title: Text(contact),
-                    subtitle: const Text('With a custom subtitle'),
-                    selectionMode: ListTileSelectionMode.single,
-                    selected: thirdSelected == contact,
-                    onSelectionChange: (selected) {
-                      setState(() {
-                        if (selected) {
-                          thirdSelected = contact;
-                        }
-                      });
-                    },
-                  );
-                },
+                      title: Text(contact),
+                      subtitle: const Text('With a custom subtitle'),
+                      selected: thirdSelected == contact,
+                      onSelectionChange: (final selected) {
+                        setState(() {
+                          if (selected) {
+                            thirdSelected = contact;
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ),
       ],
     );
   }
 }
 
-const String _contactsList = '''Kendall
+const String _contactsList = '''
+Kendall
 Collins
 Adatum Corporation
 Henry

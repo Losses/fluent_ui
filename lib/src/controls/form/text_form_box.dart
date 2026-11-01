@@ -4,9 +4,12 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
+/// A base class for form fields that can have a [TextEditingController].
 abstract class ControllableFormBox extends FormField<String> {
+  /// The controller for the text input.
   final TextEditingController? controller;
 
+  /// Creates a controllable form box.
   const ControllableFormBox({
     required super.builder,
     super.autovalidateMode,
@@ -99,10 +102,10 @@ class TextFormBox extends ControllableFormBox {
     super.enabled = true,
     double cursorWidth = 2.0,
     double? cursorHeight,
-    Radius cursorRadius = const Radius.circular(2.0),
+    Radius cursorRadius = const Radius.circular(2),
     Color? cursorColor,
     Brightness? keyboardAppearance,
-    EdgeInsets scrollPadding = const EdgeInsets.all(20.0),
+    EdgeInsetsGeometry scrollPadding = const EdgeInsetsDirectional.all(20),
     bool? enableInteractiveSelection,
     TextSelectionControls? selectionControls,
     ScrollPhysics? scrollPhysics,
@@ -121,129 +124,136 @@ class TextFormBox extends ControllableFormBox {
     MaxLengthEnforcement? maxLengthEnforcement,
     ui.BoxHeightStyle selectionHeightStyle = ui.BoxHeightStyle.tight,
     ui.BoxWidthStyle selectionWidthStyle = ui.BoxWidthStyle.tight,
-    BoxDecoration? decoration,
+    WidgetStateProperty<BoxDecoration>? decoration,
     bool enableIMEPersonalizedLearning = true,
-    MouseCursor? mouseCursor,
-    bool scribbleEnabled = true,
+    bool stylusHandwritingEnabled =
+        EditableText.defaultStylusHandwritingEnabled,
     Color? highlightColor,
     Color? errorHighlightColor,
     Color? unfocusedColor,
-    EditableTextContextMenuBuilder? contextMenuBuilder,
+    Widget Function(BuildContext, Widget, Widget?, Widget?)? decorationBuilder,
+    EditableTextContextMenuBuilder? contextMenuBuilder =
+        TextBox.defaultContextMenuBuilder,
     TextMagnifierConfiguration? magnifierConfiguration,
     SpellCheckConfiguration? spellCheckConfiguration,
-  })  : assert(initialValue == null || controller == null),
-        assert(obscuringCharacter.length == 1),
-        assert(maxLines == null || maxLines > 0),
-        assert(minLines == null || minLines > 0),
-        assert(
-          (maxLines == null) || (minLines == null) || (maxLines >= minLines),
-          "minLines can't be greater than maxLines",
-        ),
-        assert(
-          !expands || (maxLines == null && minLines == null),
-          'minLines and maxLines must be null when expands is true.',
-        ),
-        assert(!obscureText || maxLines == 1,
-            'Obscured fields cannot be multiline.'),
-        assert(maxLength == null || maxLength > 0),
-        super(
-          initialValue:
-              controller != null ? controller.text : (initialValue ?? ''),
-          builder: (FormFieldState<String> field) {
-            assert(debugCheckHasFluentTheme(field.context));
-            final theme = FluentTheme.of(field.context);
-            final state = field as TextFormBoxState;
+  }) : assert(initialValue == null || controller == null),
+       assert(obscuringCharacter.length == 1),
+       assert(maxLines == null || maxLines > 0),
+       assert(minLines == null || minLines > 0),
+       assert(
+         (maxLines == null) || (minLines == null) || (maxLines >= minLines),
+         "minLines can't be greater than maxLines",
+       ),
+       assert(
+         !expands || (maxLines == null && minLines == null),
+         'minLines and maxLines must be null when expands is true.',
+       ),
+       assert(
+         !obscureText || maxLines == 1,
+         'Obscured fields cannot be multiline.',
+       ),
+       assert(maxLength == null || maxLength > 0),
+       super(
+         initialValue: controller != null
+             ? controller.text
+             : (initialValue ?? ''),
+         builder: (field) {
+           assert(debugCheckHasFluentTheme(field.context));
+           final theme = FluentTheme.of(field.context);
+           final state = field as TextFormBoxState;
 
-            void onChangedHandler(String value) {
-              field.didChange(value);
-              if (onChanged != null) {
-                onChanged(value);
-              }
-            }
+           void onChangedHandler(String value) {
+             field.didChange(value);
+             if (onChanged != null) {
+               onChanged(value);
+             }
+           }
 
-            return UnmanagedRestorationScope(
-              bucket: field.bucket,
-              child: FormRow(
-                padding: EdgeInsets.zero,
-                error:
-                    (field.errorText == null) ? null : Text(field.errorText!),
-                child: TextBox(
-                  controller: state._effectiveController,
-                  focusNode: focusNode,
-                  keyboardType: keyboardType,
-                  textInputAction: textInputAction,
-                  style: style,
-                  strutStyle: strutStyle,
-                  textAlign: textAlign,
-                  textAlignVertical: textAlignVertical,
-                  textCapitalization: textCapitalization,
-                  autofocus: autofocus,
-                  readOnly: readOnly,
-                  showCursor: showCursor,
-                  obscuringCharacter: obscuringCharacter,
-                  obscureText: obscureText,
-                  autocorrect: autocorrect,
-                  smartDashesType: smartDashesType ??
-                      (obscureText
-                          ? SmartDashesType.disabled
-                          : SmartDashesType.enabled),
-                  smartQuotesType: smartQuotesType ??
-                      (obscureText
-                          ? SmartQuotesType.disabled
-                          : SmartQuotesType.enabled),
-                  enableSuggestions: enableSuggestions,
-                  maxLines: maxLines,
-                  minLines: minLines,
-                  expands: expands,
-                  maxLength: maxLength,
-                  onChanged: onChangedHandler,
-                  onTap: onTap,
-                  onTapOutside: onTapOutside,
-                  onEditingComplete: onEditingComplete,
-                  onSubmitted: onFieldSubmitted,
-                  inputFormatters: inputFormatters,
-                  enabled: enabled,
-                  cursorWidth: cursorWidth,
-                  cursorHeight: cursorHeight,
-                  cursorColor: cursorColor,
-                  cursorRadius: cursorRadius,
-                  scrollPadding: scrollPadding,
-                  scrollPhysics: scrollPhysics,
-                  keyboardAppearance: keyboardAppearance,
-                  enableInteractiveSelection: enableInteractiveSelection,
-                  autofillHints: autofillHints,
-                  placeholder: placeholder,
-                  placeholderStyle: placeholderStyle,
-                  scrollController: scrollController,
-                  clipBehavior: clipBehavior,
-                  prefix: prefix,
-                  prefixMode: prefixMode,
-                  suffix: suffix,
-                  suffixMode: suffixMode,
-                  highlightColor: (field.errorText == null)
-                      ? highlightColor
-                      : errorHighlightColor ??
-                          Colors.red.defaultBrushFor(theme.brightness),
-                  unfocusedColor: unfocusedColor,
-                  dragStartBehavior: dragStartBehavior,
-                  padding: padding,
-                  maxLengthEnforcement: maxLengthEnforcement,
-                  restorationId: restorationId,
-                  selectionHeightStyle: selectionHeightStyle,
-                  selectionWidthStyle: selectionWidthStyle,
-                  decoration: decoration,
-                  enableIMEPersonalizedLearning: enableIMEPersonalizedLearning,
-                  scribbleEnabled: scribbleEnabled,
-                  textDirection: textDirection,
-                  selectionControls: selectionControls,
-                  contextMenuBuilder: contextMenuBuilder,
-                  magnifierConfiguration: magnifierConfiguration,
-                  spellCheckConfiguration: spellCheckConfiguration,
-                ),
-              ),
-            );
-          },
-        );
+           return UnmanagedRestorationScope(
+             bucket: field.bucket,
+             child: FormRow(
+               padding: EdgeInsetsDirectional.zero,
+               error: (field.errorText == null) ? null : Text(field.errorText!),
+               child: TextBox(
+                 controller: state._effectiveController,
+                 focusNode: focusNode,
+                 keyboardType: keyboardType,
+                 textInputAction: textInputAction,
+                 style: style,
+                 strutStyle: strutStyle,
+                 textAlign: textAlign,
+                 textAlignVertical: textAlignVertical,
+                 textCapitalization: textCapitalization,
+                 autofocus: autofocus,
+                 readOnly: readOnly,
+                 showCursor: showCursor,
+                 obscuringCharacter: obscuringCharacter,
+                 obscureText: obscureText,
+                 autocorrect: autocorrect,
+                 smartDashesType:
+                     smartDashesType ??
+                     (obscureText
+                         ? SmartDashesType.disabled
+                         : SmartDashesType.enabled),
+                 smartQuotesType:
+                     smartQuotesType ??
+                     (obscureText
+                         ? SmartQuotesType.disabled
+                         : SmartQuotesType.enabled),
+                 enableSuggestions: enableSuggestions,
+                 maxLines: maxLines,
+                 minLines: minLines,
+                 expands: expands,
+                 maxLength: maxLength,
+                 onChanged: onChangedHandler,
+                 onTap: onTap,
+                 onTapOutside: onTapOutside,
+                 onEditingComplete: onEditingComplete,
+                 onSubmitted: onFieldSubmitted,
+                 inputFormatters: inputFormatters,
+                 enabled: enabled,
+                 cursorWidth: cursorWidth,
+                 cursorHeight: cursorHeight,
+                 cursorColor: cursorColor,
+                 cursorRadius: cursorRadius,
+                 scrollPadding: scrollPadding,
+                 scrollPhysics: scrollPhysics,
+                 keyboardAppearance: keyboardAppearance,
+                 enableInteractiveSelection: enableInteractiveSelection,
+                 autofillHints: autofillHints,
+                 placeholder: placeholder,
+                 placeholderStyle: placeholderStyle,
+                 scrollController: scrollController,
+                 clipBehavior: clipBehavior,
+                 prefix: prefix,
+                 prefixMode: prefixMode,
+                 suffix: suffix,
+                 suffixMode: suffixMode,
+                 highlightColor: (field.errorText == null)
+                     ? highlightColor
+                     : errorHighlightColor ??
+                           Colors.red.defaultBrushFor(theme.brightness),
+                 unfocusedColor: unfocusedColor,
+                 dragStartBehavior: dragStartBehavior,
+                 padding: padding,
+                 maxLengthEnforcement: maxLengthEnforcement,
+                 restorationId: restorationId,
+                 selectionHeightStyle: selectionHeightStyle,
+                 selectionWidthStyle: selectionWidthStyle,
+                 decoration: decoration,
+                 enableIMEPersonalizedLearning: enableIMEPersonalizedLearning,
+                 stylusHandwritingEnabled: stylusHandwritingEnabled,
+                 textDirection: textDirection,
+                 selectionControls: selectionControls,
+                 contextMenuBuilder: contextMenuBuilder,
+                 decorationBuilder: decorationBuilder,
+                 magnifierConfiguration: magnifierConfiguration,
+                 spellCheckConfiguration: spellCheckConfiguration,
+               ),
+             ),
+           );
+         },
+       );
 
   @override
   FormFieldState<String> createState() => TextFormBoxState();
@@ -276,8 +286,9 @@ class TextFormBoxState extends FormFieldState<String> {
       widget.controller?.addListener(_handleControllerChanged);
 
       if (oldWidget.controller != null && widget.controller == null) {
-        _controller =
-            TextEditingController.fromValue(oldWidget.controller!.value);
+        _controller = TextEditingController.fromValue(
+          oldWidget.controller!.value,
+        );
       }
 
       if (widget.controller != null) {

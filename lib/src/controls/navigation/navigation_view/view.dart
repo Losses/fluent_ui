@@ -1,49 +1,134 @@
-import 'dart:collection';
-
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 part 'body.dart';
-
 part 'indicators.dart';
-
 part 'pane.dart';
-
 part 'pane_items.dart';
+part 'theme.dart';
 
-part 'style.dart';
+/// The minimum height of a pane item.
+const double kPaneItemMinHeight = 40;
 
-/// The default size used by the app top bar.
+/// The minimum width of a pane item in top display mode.
+const double kPaneItemTopMinWidth = 40;
+
+/// The minimum height of a pane item header.
+const double kPaneItemHeaderMinHeight = 4;
+
+/// A builder function for customizing the navigation content.
 ///
-/// Value eyeballed from Windows 10 v10.0.19041.928
-const double _kDefaultAppBarHeight = 50.0;
-const double kPaneItemMinHeight = 40.0;
-const double kPaneItemHeaderMinHeight = 4.0;
+/// The [item] is the currently selected pane item, if any.
+/// The [body] is the default body widget built from [PaneItem.body].
+typedef NavigationContentBuilder =
+    Widget Function(PaneItem? item, Widget? body);
 
-typedef NavigationContentBuilder = Widget Function(
-  PaneItem? item,
-  Widget? body,
-);
-
-/// The NavigationView control provides top-level navigation for your app. It
-/// adapts to a variety of screen sizes and supports both top and left
-/// navigation styles.
+/// A navigation control that provides top-level navigation for your app.
 ///
-/// ![NavigationView Preview](https://docs.microsoft.com/en-us/windows/uwp/design/controls-and-patterns/images/nav-view-header.png)
+/// The [NavigationView] adapts to a variety of screen sizes and supports
+/// multiple display modes: left, top, compact, and minimal. It automatically
+/// switches between these modes based on the available width when using
+/// [PaneDisplayMode.auto].
+///
+/// ![NavigationView Preview](https://learn.microsoft.com/en-us/windows/apps/design/controls/images/nav-view-header.png)
+///
+/// {@tool snippet}
+/// This example shows a basic navigation view with left navigation:
+///
+/// ```dart
+/// int selectedIndex = 0;
+///
+/// NavigationView(
+///   titleBar: const TitleBar(
+///     title: Text('My App'),
+///   ),
+///   pane: NavigationPane(
+///     selected: selectedIndex,
+///     onChanged: (index) => setState(() => selectedIndex = index),
+///     items: [
+///       PaneItem(
+///         icon: Icon(FluentIcons.home),
+///         title: Text('Home'),
+///         body: HomePage(),
+///       ),
+///       PaneItem(
+///         icon: Icon(FluentIcons.settings),
+///         title: Text('Settings'),
+///         body: SettingsPage(),
+///       ),
+///     ],
+///   ),
+/// )
+/// ```
+/// {@end-tool}
+///
+/// ## Display modes
+///
+/// The navigation pane can be displayed in different modes using [NavigationPane.displayMode]:
+///
+/// * [PaneDisplayMode.auto] - Automatically adapts based on window width
+/// * [PaneDisplayMode.expanded] - Expanded pane with icons and labels
+/// * [PaneDisplayMode.compact] - Collapsed pane showing only icons
+/// * [PaneDisplayMode.minimal] - Hidden pane with hamburger menu
+/// * [PaneDisplayMode.top] - Horizontal navigation at the top
+///
+/// ## Adaptive behavior
+///
+/// When using [PaneDisplayMode.auto]:
+/// * Width >= 1008px: Open mode (expanded pane)
+/// * Width 641-1007px: Compact mode (icons only)
+/// * Width <= 640px: Minimal mode (hamburger menu)
+///
+/// ## Navigation and routing
+///
+/// [NavigationView] manages navigation UI, selection, and optional local
+/// selection history. It does not replace Flutter's `Navigator`, `Router`, or
+/// routing packages. For router-owned content, use [paneBodyBuilder] to
+/// integrate with your routing system:
+///
+/// {@tool snippet}
+/// ```dart
+/// NavigationView(
+///   pane: NavigationPane(
+///     selected: _calculateSelectedIndex(context),
+///     items: _buildPaneItems(),
+///   ),
+///   paneBodyBuilder: (item, body) {
+///     // Return your router's body widget
+///     return body ?? const SizedBox.shrink();
+///   },
+/// )
+/// ```
+/// {@end-tool}
+///
+/// ## Page state
+///
+/// Only the selected [PaneItem.body] is mounted by default. A stateful page can
+/// opt into retention with [AutomaticKeepAliveClientMixin], `super.build`, and
+/// `wantKeepAlive == true`. When [paneBodyBuilder] is supplied, that builder is
+/// responsible for body state management.
+///
+/// ## Local back history
+///
+/// Selection changes are recorded locally. Call
+/// `NavigationView.of(context).pop()` to select the previous pane item. This is
+/// separate from `Navigator.pop()`, which pops a Flutter route. An open compact
+/// or minimal pane is closed before local history is changed.
 ///
 /// See also:
 ///
-///   * [NavigationPane], the pane used by [NavigationView], that can be
-///     displayed either at the left and top
-///   * [TabView], a widget similar to [NavigationView], useful to display
-///     several pages of content while giving a user the capability to
-///     rearrange, open, or close new tabs.
+///  * [NavigationPane], the pane configuration for the navigation view
+///  * [TitleBar], a customizable window title bar
+///  * [PaneItem], an item in the navigation pane
+///  * [TabView], for tab-based navigation
+///  * <https://learn.microsoft.com/en-us/windows/apps/design/controls/navigationview>
 class NavigationView extends StatefulWidget {
   /// Creates a navigation view.
   const NavigationView({
     super.key,
-    this.appBar,
+    this.titleBar,
     this.pane,
     this.content,
     this.clipBehavior = Clip.antiAlias,
@@ -53,13 +138,11 @@ class NavigationView extends StatefulWidget {
     this.paneBodyBuilder,
     this.onDisplayModeChanged,
   }) : assert(
-          (pane != null && content == null) ||
-              (pane == null && content != null),
-          'Either pane or content must be provided',
-        );
+         (pane != null && content == null) || (pane == null && content != null),
+         'Either pane or content must be provided',
+       );
 
-  /// The app bar of the app.
-  final NavigationAppBar? appBar;
+  final Widget? titleBar;
 
   /// Can be used to override the widget that is built from
   /// the [PaneItem.body]. Only used if [pane] is provided.
@@ -132,11 +215,11 @@ class NavigationView extends StatefulWidget {
   ///
   /// If the display mode is set to compact, this listens to changes on the
   /// toggle button and resizes. If the pane is closed, [PaneDisplayMode.compact]
-  /// is returned. If the pane is open, [PaneDisplayMode.open] is returned.
+  /// is returned. If the pane is open, [PaneDisplayMode.expanded] is returned.
   ///
   /// If the display mode is set to minimal, this is called when the pane is opened
   /// or closed. If the pane is closed, [PaneDisplayMode.minimal] is returned.
-  /// If the pane is open, [PaneDisplayMode.open] is returned.
+  /// If the pane is open, [PaneDisplayMode.expanded] is returned.
   final ValueChanged<PaneDisplayMode>? onDisplayModeChanged;
 
   /// Gets the current navigation view state.
@@ -146,6 +229,9 @@ class NavigationView extends StatefulWidget {
     return maybeOf(context)!;
   }
 
+  /// Gets the closest [NavigationViewState] ancestor, if any.
+  ///
+  /// Use this when the state might not exist in the widget tree.
   static NavigationViewState? maybeOf(BuildContext context) {
     return context.findAncestorStateOfType<NavigationViewState>();
   }
@@ -153,22 +239,22 @@ class NavigationView extends StatefulWidget {
   /// Get useful info about the current navigation view.
   ///
   /// As a normal user, you will rarely need this information.
-  static InheritedNavigationView dataOf(BuildContext context) {
-    return context
-        .dependOnInheritedWidgetOfExactType<InheritedNavigationView>()!;
+  static NavigationViewContext dataOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<NavigationViewContext>()!;
   }
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
     properties
-      ..add(DiagnosticsProperty('appBar', appBar))
       ..add(DiagnosticsProperty('pane', pane))
-      ..add(DiagnosticsProperty(
-        'clipBehavior',
-        clipBehavior,
-        defaultValue: Clip.hardEdge,
-      ))
+      ..add(
+        DiagnosticsProperty(
+          'clipBehavior',
+          clipBehavior,
+          defaultValue: Clip.hardEdge,
+        ),
+      )
       ..add(DiagnosticsProperty('contentShape', contentShape));
   }
 
@@ -176,37 +262,58 @@ class NavigationView extends StatefulWidget {
   State<NavigationView> createState() => NavigationViewState();
 }
 
+class _NavigationHistoryEntry {
+  const _NavigationHistoryEntry({required this.key, required this.index});
+
+  final Key? key;
+  final int index;
+}
+
 class NavigationViewState extends State<NavigationView> {
-  /// The scroll controller used to keep the scrolling state of
-  /// the list view when the display mode is switched between open
-  /// and compact, and even keep it for the minimal state.
+  ScrollController? _paneScrollController;
+
+  /// The scroll controller used to keep the scrolling state of the list view
+  /// when the display mode is switched between open and compact, and even keep
+  /// it for the minimal state.
   ///
-  /// It's also used to display and control the [Scrollbar] introduced
-  /// by the panes.
-  late ScrollController paneScrollController;
+  /// It's also used to display and control the [Scrollbar] introduced by the panes.
+  ScrollController get paneScrollController {
+    if (widget.pane?.scrollController != null) {
+      return widget.pane!.scrollController!;
+    }
+    _paneScrollController ??= ScrollController(
+      debugLabel: '${widget.runtimeType} scroll controller',
+    );
+    return _paneScrollController!;
+  }
 
   /// The key used to animate between open and compact display mode
   final _panelKey = GlobalKey();
   final _listKey = GlobalKey();
+  final _secondaryListKey = GlobalKey();
+  final _selectedItemKey = GlobalKey();
   final _contentKey = GlobalKey();
   final _overlayKey = GlobalKey();
-
-  final Map<int, GlobalKey> _itemKeys = {};
 
   bool _minimalPaneOpen = false;
 
   /// Whether the minimal pane is open.
   ///
   /// Always false if the current display mode is not minimal.
-  bool get minimalPaneOpen => _minimalPaneOpen;
-  set minimalPaneOpen(bool open) {
-    if (displayMode == PaneDisplayMode.minimal) {
-      setState(() => _minimalPaneOpen = open);
-      widget.onDisplayModeChanged?.call(
-        open ? PaneDisplayMode.open : PaneDisplayMode.minimal,
-      );
+  bool get isMinimalPaneOpen => _minimalPaneOpen;
+  set isMinimalPaneOpen(bool open) {
+    if (open && !(widget.pane?.toggleable ?? true)) return;
+    if (_displayMode == PaneDisplayMode.minimal) {
+      if (_minimalPaneOpen != open) {
+        setState(() => _minimalPaneOpen = open);
+        widget.onDisplayModeChanged?.call(
+          open ? PaneDisplayMode.expanded : PaneDisplayMode.minimal,
+        );
+      }
     } else {
-      setState(() => _minimalPaneOpen = false);
+      if (_minimalPaneOpen) {
+        setState(() => _minimalPaneOpen = false);
+      }
     }
   }
 
@@ -216,16 +323,23 @@ class NavigationViewState extends State<NavigationView> {
   ///
   /// Always false if the current display mode is not open nor compact
   bool get compactOverlayOpen {
-    if ([PaneDisplayMode.open, PaneDisplayMode.compact].contains(displayMode)) {
+    if ([
+      PaneDisplayMode.expanded,
+      PaneDisplayMode.compact,
+    ].contains(_displayMode)) {
       return _compactOverlayOpen;
     }
-
+    _compactOverlayOpen = false;
     return false;
   }
 
   set compactOverlayOpen(bool value) {
+    if (value && !(widget.pane?.toggleable ?? true)) return;
     if (value == _compactOverlayOpen) return;
-    if ([PaneDisplayMode.open, PaneDisplayMode.compact].contains(displayMode)) {
+    if ([
+      PaneDisplayMode.expanded,
+      PaneDisplayMode.compact,
+    ].contains(_displayMode)) {
       setState(() {
         _compactOverlayOpen = value;
         _isTransitioning = true;
@@ -235,100 +349,159 @@ class NavigationViewState extends State<NavigationView> {
         _compactOverlayOpen,
         identifier: 'compactOverlayOpen',
       );
+      return;
+    }
+    _compactOverlayOpen = false;
+  }
+
+  final List<_NavigationHistoryEntry> _history = [];
+  bool _isBackNavigation = false;
+
+  /// Whether the navigation pane is currently open.
+  ///
+  /// Expanded panes are always open. Top panes cannot be opened. Compact and
+  /// minimal modes report whether their overlay is open.
+  bool get isPaneOpen => switch (_displayMode) {
+    PaneDisplayMode.expanded => true,
+    PaneDisplayMode.compact => compactOverlayOpen,
+    PaneDisplayMode.minimal => isMinimalPaneOpen,
+    PaneDisplayMode.top || PaneDisplayMode.auto => false,
+  };
+
+  /// Opens the compact or minimal overlay pane.
+  ///
+  /// This does nothing when [NavigationPane.toggleable] is false, in expanded
+  /// mode (already open), or in top mode.
+  void openPane() {
+    if (!(widget.pane?.toggleable ?? true)) return;
+    switch (_displayMode) {
+      case PaneDisplayMode.compact:
+        compactOverlayOpen = true;
+      case PaneDisplayMode.minimal:
+        isMinimalPaneOpen = true;
+      case PaneDisplayMode.expanded:
+      case PaneDisplayMode.top:
+      case PaneDisplayMode.auto:
+        return;
     }
   }
 
-  int _previousItemIndex = 0;
-
-  PaneDisplayMode? _autoDisplayMode;
-
-  /// Gets the current display mode. If it's automatic, it'll adapt to the other
-  /// display modes according to the current available space.
-  PaneDisplayMode get displayMode {
-    if (widget.pane?.displayMode == PaneDisplayMode.auto) {
-      return _autoDisplayMode ?? PaneDisplayMode.minimal;
+  /// Closes the compact or minimal overlay pane.
+  void closePane() {
+    switch (_displayMode) {
+      case PaneDisplayMode.compact:
+        compactOverlayOpen = false;
+      case PaneDisplayMode.minimal:
+        isMinimalPaneOpen = false;
+      case PaneDisplayMode.expanded:
+      case PaneDisplayMode.top:
+      case PaneDisplayMode.auto:
+        return;
     }
+  }
 
-    return widget.pane?.displayMode ?? PaneDisplayMode.minimal;
+  int? _resolveHistoryEntry(_NavigationHistoryEntry entry) {
+    final pane = widget.pane;
+    if (pane == null) return null;
+    if (entry.key != null) {
+      final index = pane.effectiveItems.indexWhere(
+        (item) => item.key == entry.key,
+      );
+      if (!index.isNegative) return index;
+      return null;
+    }
+    return entry.index < pane.effectiveItems.length ? entry.index : null;
+  }
+
+  /// Pops the current item from the local selection history.
+  ///
+  /// An open compact or minimal overlay is closed before history is changed.
+  void pop() {
+    if (isPaneOpen &&
+        (_displayMode == PaneDisplayMode.compact ||
+            _displayMode == PaneDisplayMode.minimal)) {
+      closePane();
+      return;
+    }
+    if (widget.pane?.onChanged == null) return;
+
+    while (_history.isNotEmpty) {
+      final previous = _resolveHistoryEntry(_history.last);
+      if (previous == null || previous == widget.pane?.selected) {
+        _history.removeLast();
+        continue;
+      }
+      _isBackNavigation = true;
+      widget.pane!.onChanged!(previous);
+      return;
+    }
+  }
+
+  int _previousItemIndex = -1;
+
+  /// Updates the previous item index.
+  ///
+  /// Use -1 to clear the previous item index.
+  void _updatePreviousItemIndex(int index) {
+    if (index != _previousItemIndex) {
+      _previousItemIndex = index;
+      if (mounted) setState(() {});
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    paneScrollController = widget.pane?.scrollController ??
-        ScrollController(
-          debugLabel: '${widget.runtimeType} scroll controller',
-        );
-    paneScrollController.addListener(_handleScrollControllerEvent);
-
-    _generateKeys();
-
-    _compactOverlayOpen = PageStorage.of(context).readState(
-          context,
-          identifier: 'compactOverlayOpen',
-        ) as bool? ??
+    _compactOverlayOpen =
+        PageStorage.of(
+              context,
+            ).readState(context, identifier: 'compactOverlayOpen')
+            as bool? ??
         false;
-  }
-
-  void _handleScrollControllerEvent() {
-    if (mounted) setState(() {});
   }
 
   @override
   void didUpdateWidget(NavigationView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.pane?.scrollController != paneScrollController) {
-      paneScrollController =
-          widget.pane?.scrollController ?? paneScrollController;
+    if (widget.pane?.scrollController != oldWidget.pane?.scrollController) {
+      if (widget.pane?.scrollController != null) {
+        _paneScrollController?.dispose();
+        _paneScrollController = null;
+      }
     }
 
     if (oldWidget.pane?.selected != widget.pane?.selected) {
-      _previousItemIndex = oldWidget.pane?.selected ?? -1;
+      final oldItems = oldWidget.pane?.effectiveItems ?? const <PaneItem>[];
+      final newItems = widget.pane?.effectiveItems ?? const <PaneItem>[];
+      final oldIndex = oldWidget.pane?.selected;
+      final newIndex = widget.pane?.selected;
+      final oldItem = oldIndex != null && oldIndex < oldItems.length
+          ? oldItems[oldIndex]
+          : null;
+      final newItem = newIndex != null && newIndex < newItems.length
+          ? newItems[newIndex]
+          : null;
+      final sameKeyedItem =
+          oldItem?.key != null && oldItem?.key == newItem?.key;
 
-      final item = widget.pane?.selected == null
-          ? null
-          : widget.pane?.selectedItem.itemKey.currentContext;
-
-      if (item != null) {
-        final atEnd =
-            (widget.pane!.effectiveItems.length / 2) < widget.pane!.selected!;
-
-        Scrollable.ensureVisible(
-          item,
-          alignmentPolicy: atEnd
-              ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
-              : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
-        );
+      if (!sameKeyedItem) {
+        if (_isBackNavigation) {
+          _history.removeLast();
+          _isBackNavigation = false;
+        } else if (oldItem != null && oldIndex != null) {
+          _history.add(
+            _NavigationHistoryEntry(key: oldItem.key, index: oldIndex),
+          );
+        }
+        _updatePreviousItemIndex(oldIndex ?? -1);
       }
-    }
 
-    if (oldWidget.pane?.effectiveItems.length !=
-        widget.pane?.effectiveItems.length) {
-      if (widget.pane?.effectiveItems.length != null) {
-        _generateKeys();
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // We need to run this after the frame to ensure the [_selectedItemKey]
+        // is attached to correct item.
+        ensureSelectedItemVisible();
+      });
     }
-
-    if (_itemKeys.length != widget.pane?.effectiveItems.length) {
-      if (widget.pane?.effectiveItems.length != null) {
-        _generateKeys();
-      }
-    }
-  }
-
-  void _generateKeys() {
-    if (widget.pane == null) return;
-    _itemKeys
-      ..clear()
-      ..addAll(
-        Map.fromIterables(
-          List.generate(widget.pane!.effectiveItems.length, (i) => i),
-          List.generate(
-            widget.pane!.effectiveItems.length,
-            (i) => GlobalKey(debugLabel: 'NavigationView item key#$i'),
-          ),
-        ),
-      );
   }
 
   @override
@@ -336,19 +509,124 @@ class NavigationViewState extends State<NavigationView> {
     // If the controller was created locally, dispose it
     if (widget.pane?.scrollController == null) {
       paneScrollController.dispose();
-    } else {
-      paneScrollController.removeListener(_handleScrollControllerEvent);
     }
     super.dispose();
   }
 
-  /// Toggles the current compact mode
+  /// Ensures the current selected item is visible in the pane.
+  ///
+  /// If the item is not visible, this does nothing.
+  void ensureSelectedItemVisible({Duration? duration, Curve? curve}) {
+    if (!mounted) return;
+    final item = _selectedItemKey.currentContext;
+    if (item != null) {
+      final theme = FluentTheme.of(context);
+      final atEnd =
+          (widget.pane!.effectiveItems.length / 2) < widget.pane!.selected!;
+
+      Scrollable.ensureVisible(
+        item,
+        alignmentPolicy: atEnd
+            ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+            : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+        duration: duration ?? theme.fastAnimationDuration,
+        curve: curve ?? theme.animationCurve,
+      );
+    }
+  }
+
+  /// Toggles the compact open mode.
+  ///
+  /// If the compact open mode is already open, it will be closed.
+  /// If the compact open mode is closed, it will be opened.
+  ///
+  /// If the display mode is not compact, this does nothing.
   void toggleCompactOpenMode() {
+    if (_displayMode != PaneDisplayMode.compact ||
+        !(widget.pane?.toggleable ?? true)) {
+      return;
+    }
     compactOverlayOpen = !compactOverlayOpen;
     widget.onDisplayModeChanged?.call(
-      compactOverlayOpen ? PaneDisplayMode.open : PaneDisplayMode.compact,
+      compactOverlayOpen ? PaneDisplayMode.expanded : PaneDisplayMode.compact,
     );
   }
+
+  /// Toggles the minimal pane open mode.
+  ///
+  /// If the minimal pane open mode is already open, it will be closed.
+  /// If the minimal pane open mode is closed, it will be opened.
+  ///
+  /// If the display mode is not minimal, this does nothing.
+  void toggleMinimalPane() {
+    if (_displayMode != PaneDisplayMode.minimal ||
+        !(widget.pane?.toggleable ?? true)) {
+      return;
+    }
+    isMinimalPaneOpen = !isMinimalPaneOpen;
+  }
+
+  /// Toggles the current pane.
+  ///
+  /// This does nothing on top display mode.
+  ///
+  /// See also:
+  ///
+  ///   * [toggleCompactOpenMode], to toggle the compact open mode
+  ///   * [toggleMinimalPane], to toggle the minimal pane open mode
+  void togglePane() {
+    if (!(widget.pane?.toggleable ?? true)) return;
+    switch (_displayMode) {
+      case PaneDisplayMode.compact:
+      case PaneDisplayMode.expanded:
+        toggleCompactOpenMode();
+      case PaneDisplayMode.minimal:
+        toggleMinimalPane();
+      case PaneDisplayMode.top:
+      case PaneDisplayMode.auto:
+        return;
+    }
+  }
+
+  /// The position of the toggle pane button.
+  PaneToggleButtonPosition get toggleButtonPosition {
+    if (!(widget.pane?.toggleable ?? true) ||
+        widget.pane?.toggleButton == null) {
+      return PaneToggleButtonPosition.none;
+    }
+    final preferredPosition =
+        widget.pane?.toggleButtonPosition ??
+        PaneToggleButtonPreferredPosition.auto;
+
+    if (hasTitleBar) {
+      switch (displayMode) {
+        case PaneDisplayMode.minimal:
+          return PaneToggleButtonPosition.titleBar;
+        case PaneDisplayMode.compact:
+          switch (preferredPosition) {
+            case PaneToggleButtonPreferredPosition.pane:
+              return PaneToggleButtonPosition.pane;
+            case PaneToggleButtonPreferredPosition.auto:
+            case PaneToggleButtonPreferredPosition.titleBar:
+              return PaneToggleButtonPosition.titleBar;
+          }
+        case PaneDisplayMode.expanded:
+        case PaneDisplayMode.top:
+        case PaneDisplayMode.auto:
+          return PaneToggleButtonPosition.none;
+      }
+    } else {
+      switch (preferredPosition) {
+        case PaneToggleButtonPreferredPosition.pane:
+        case PaneToggleButtonPreferredPosition.titleBar:
+        case PaneToggleButtonPreferredPosition.auto:
+          return PaneToggleButtonPosition.pane;
+      }
+    }
+  }
+
+  /// Whether the navigation view has a title bar.
+  bool get hasTitleBar => widget.titleBar != null;
 
   /// Whether the navigation pane is currently transitioning
   ///
@@ -358,12 +636,65 @@ class NavigationViewState extends State<NavigationView> {
   ///
   /// This is always false when display mode is top
   bool _isTransitioning = false;
-
   void _animationEndCallback([bool notify = true]) {
     _isTransitioning = false;
     if (mounted && notify) setState(() {});
   }
 
+  PaneDisplayMode _displayMode = PaneDisplayMode.auto;
+
+  /// The current display mode.
+  ///
+  /// If the pane display mode is automatic, it will adapt to the available
+  /// space.
+  PaneDisplayMode get displayMode => _displayMode;
+
+  /// The layout adapts based on available width:
+  /// - Width >= 1008px: Open mode (expanded pane)
+  /// - Width 641-1007px: Compact mode (icons only)
+  /// - Width <= 640px: Minimal mode (hamburger menu)
+  void _resolveDisplayMode(BoxConstraints constraints) {
+    final pane = widget.pane;
+    final paneDisplayMode = pane?.displayMode ?? PaneDisplayMode.auto;
+
+    if (paneDisplayMode == PaneDisplayMode.auto) {
+      var width = constraints.biggest.width;
+      if (width.isInfinite) width = MediaQuery.widthOf(context);
+
+      PaneDisplayMode autoDisplayMode;
+      if (width <=
+          (pane?.compactModeThresholdWidth ?? kCompactModeThresholdWidth)) {
+        autoDisplayMode = PaneDisplayMode.minimal;
+      } else if (width >=
+          (pane?.expandedModeThresholdWidth ?? kExpandedModeThresholdWidth)) {
+        autoDisplayMode = PaneDisplayMode.expanded;
+      } else {
+        autoDisplayMode = PaneDisplayMode.compact;
+      }
+
+      if (autoDisplayMode != _displayMode) {
+        widget.onDisplayModeChanged?.call(autoDisplayMode);
+        // Reset minimal pane open state when leaving minimal mode so that
+        // re-entering minimal mode starts with the pane closed.
+        if (_displayMode == PaneDisplayMode.minimal) {
+          _minimalPaneOpen = false;
+        }
+      }
+
+      _displayMode = autoDisplayMode;
+    } else {
+      _displayMode = paneDisplayMode;
+    }
+  }
+
+  /// Builds the navigation view with adaptive layout based on display mode.
+  ///
+  /// This method handles:
+  /// - Automatic display mode switching when using [PaneDisplayMode.auto]
+  /// - Different layouts for each display mode (top, open, compact, minimal)
+  /// - Overlay management for compact and minimal modes
+  /// - Content clipping and shaping
+  /// - Animation coordination between pane transitions
   @override
   Widget build(BuildContext context) {
     assert(debugCheckHasFluentTheme(context));
@@ -376,131 +707,66 @@ class NavigationViewState extends State<NavigationView> {
     );
 
     final theme = NavigationPaneTheme.of(context);
-    final localizations = FluentLocalizations.of(context);
-    final EdgeInsetsGeometry appBarPadding = EdgeInsetsDirectional.only(
-      top: widget.appBar?.finalHeight(context) ?? 0.0,
-    );
     final direction = Directionality.of(context);
 
-    Widget? paneNavigationButton() {
-      final minimalLeading = PaneItem(
-        title: Text(
-          !minimalPaneOpen
-              ? localizations.openNavigationTooltip
-              : localizations.closeNavigationTooltip,
-        ),
-        icon: Icon(theme.paneNavigationButtonIcon),
-        body: const SizedBox.shrink(),
-      ).build(
-        context,
-        false,
-        () async {
-          minimalPaneOpen = !minimalPaneOpen;
-          _isTransitioning = true;
-        },
-        displayMode: PaneDisplayMode.compact,
-      );
-      return minimalLeading;
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _resolveDisplayMode(constraints);
 
-    return LayoutBuilder(builder: (context, consts) {
-      var displayMode = widget.pane?.displayMode ?? PaneDisplayMode.auto;
-
-      if (displayMode == PaneDisplayMode.auto) {
-        /// For more info on the adaptive behavior, see
-        /// https://docs.microsoft.com/en-us/windows/apps/design/controls/navigationview#adaptive-behavior
-        ///
-        ///  DD/MM/YYYY
-        /// (06/04/2022)
-        ///
-        /// When PaneDisplayMode is set to its default value of Auto, the
-        /// adaptive behavior is to show:
-        /// - An expanded left pane on large window widths (1008px or greater).
-        /// - A left, icon-only, nav pane (compact) on medium window widths
-        /// (641px to 1007px).
-        /// - Only a menu button (minimal) on small window widths (640px or less).
-        var width = consts.biggest.width;
-        if (width.isInfinite) width = MediaQuery.sizeOf(context).width;
-
-        PaneDisplayMode autoDisplayMode;
-        if (width <= 640) {
-          autoDisplayMode = PaneDisplayMode.minimal;
-        } else if (width >= 1008) {
-          autoDisplayMode = PaneDisplayMode.open;
-        } else {
-          autoDisplayMode = PaneDisplayMode.compact;
-        }
-
-        if (autoDisplayMode != _autoDisplayMode) {
-          widget.onDisplayModeChanged?.call(autoDisplayMode);
-        }
-
-        displayMode = _autoDisplayMode = autoDisplayMode;
-      }
-      assert(displayMode != PaneDisplayMode.auto);
-
-      var appBar = () {
-        if (widget.appBar != null) {
-          return _NavigationAppBar(
-            appBar: widget.appBar!,
-            additionalLeading: () {
-              if (widget.pane != null) {
-                return displayMode == PaneDisplayMode.minimal
-                    ? paneNavigationButton()
-                    : null;
-              }
-            }(),
-          );
-        }
-        return LayoutBuilder(
-          builder: (context, constraints) => SizedBox(
-            width: constraints.maxWidth,
-            height: 0,
-          ),
-        );
-      }();
-
-      late Widget paneResult;
-      if (widget.pane != null) {
-        final pane = widget.pane!;
-        final body = _NavigationBody(
-          itemKey: ValueKey(pane.selected ?? -1),
-          transitionBuilder: widget.transitionBuilder,
-          paneBodyBuilder: widget.paneBodyBuilder,
-        );
-
-        if (pane.customPane != null) {
-          paneResult = Builder(builder: (context) {
-            return PaneScrollConfiguration(
-              child: pane.customPane!.build(
-                context,
-                NavigationPaneWidgetData(
-                  appBar: appBar,
-                  content: ClipRect(child: body),
-                  listKey: _listKey,
-                  paneKey: _panelKey,
-                  scrollController: paneScrollController,
-                  pane: pane,
-                ),
-              ),
-            );
-          });
-        } else {
-          final contentShape = widget.contentShape ??
-              RoundedRectangleBorder(
-                side: BorderSide(
-                  color:
-                      FluentTheme.of(context).resources.cardStrokeColorDefault,
-                ),
-                borderRadius: displayMode == PaneDisplayMode.top
-                    ? BorderRadius.zero
-                    : const BorderRadiusDirectional.only(
-                        topStart: Radius.circular(8.0),
-                      ).resolve(direction),
-              );
-          final Widget content = ClipRect(
+        late Widget paneResult;
+        if (widget.pane != null) {
+          final pane = widget.pane!;
+          final selectedItem = pane.selected != null ? pane.selectedItem : null;
+          final body = ClipRect(
             key: _contentKey,
-            child: displayMode == PaneDisplayMode.minimal
+            child: _NavigationBody(
+              itemKey: ValueKey<Object>(
+                selectedItem?.key ?? pane.selected ?? -1,
+              ),
+              transitionBuilder: widget.transitionBuilder,
+              paneBodyBuilder: widget.paneBodyBuilder,
+              animationCurve: theme.animationCurve,
+              animationDuration: theme.animationDuration,
+            ),
+          );
+
+          if (pane.customPane != null) {
+            paneResult = Builder(
+              builder: (context) {
+                return _NavigationViewPaneScrollConfiguration(
+                  controller: paneScrollController,
+                  hasTitleBar: hasTitleBar,
+                  child: pane.customPane!.build(
+                    context,
+                    NavigationPaneWidgetData(
+                      titleBar: widget.titleBar,
+                      content: ClipRect(child: body),
+                      listKey: _listKey,
+                      paneKey: _panelKey,
+                      scrollController: paneScrollController,
+                      pane: pane,
+                    ),
+                  ),
+                );
+              },
+            );
+          } else {
+            final contentShape =
+                widget.contentShape ??
+                RoundedRectangleBorder(
+                  side: BorderSide(
+                    color: FluentTheme.of(
+                      context,
+                    ).resources.cardStrokeColorDefault,
+                  ),
+                  borderRadius: _displayMode == PaneDisplayMode.top
+                      ? BorderRadius.zero
+                      : const BorderRadiusDirectional.only(
+                          topStart: Radius.circular(8),
+                        ).resolve(direction),
+                );
+
+            final Widget content = _displayMode == PaneDisplayMode.minimal
                 ? body
                 : DecoratedBox(
                     position: DecorationPosition.foreground,
@@ -510,534 +776,424 @@ class NavigationViewState extends State<NavigationView> {
                       clipper: ShapeBorderClipper(shape: contentShape),
                       child: body,
                     ),
-                  ),
-          );
-          if (displayMode != PaneDisplayMode.compact) {
-            _compactOverlayOpen = false;
-          }
-          if (displayMode != PaneDisplayMode.open) {
-            PageStorage.of(context).writeState(
-              context,
-              false,
-              identifier: 'openModeOpen',
-            );
-          }
-          switch (displayMode) {
-            case PaneDisplayMode.top:
-              _isTransitioning = false;
-              paneResult = Column(children: [
-                appBar,
-                PaneScrollConfiguration(
-                  child: _TopNavigationPane(
-                    pane: pane,
-                    listKey: _listKey,
-                    appBar: widget.appBar,
-                  ),
-                ),
-                Expanded(child: content),
-              ]);
-              break;
-            case PaneDisplayMode.compact:
-
-              // Ensure the overlay state is correct
-              _compactOverlayOpen = PageStorage.of(context).readState(
-                    context,
-                    identifier: 'compactOverlayOpen',
-                  ) as bool? ??
-                  _compactOverlayOpen;
-
-              var openSize =
-                  pane.size?.openPaneWidth ?? kOpenNavigationPaneWidth;
-
-              final noOverlayRequired = consts.maxWidth / 2.5 > openSize;
-              final openedWithoutOverlay =
-                  _compactOverlayOpen && consts.maxWidth / 2.5 > openSize;
-
-              if (noOverlayRequired) {
-                paneResult = Column(children: [
-                  appBar,
-                  Expanded(
-                    child: Row(children: [
-                      PaneScrollConfiguration(
-                        child: () {
-                          if (openedWithoutOverlay) {
-                            return Mica(
-                              key: _overlayKey,
-                              backgroundColor: theme.backgroundColor,
-                              child: Container(
-                                margin:
-                                    const EdgeInsets.symmetric(vertical: 1.0),
-                                child: _OpenNavigationPane(
-                                  theme: theme,
-                                  pane: pane,
-                                  paneKey: _panelKey,
-                                  listKey: _listKey,
-                                  onToggle: pane.toggleable
-                                      ? toggleCompactOpenMode
-                                      : null,
-                                  initiallyOpen: true,
-                                  onAnimationEnd: _animationEndCallback,
-                                ),
-                              ),
-                            );
-                          } else {
-                            return KeyedSubtree(
-                              key: _overlayKey,
-                              child: _CompactNavigationPane(
-                                pane: pane,
-                                paneKey: _panelKey,
-                                listKey: _listKey,
-                                onToggle: pane.toggleable
-                                    ? toggleCompactOpenMode
-                                    : null,
-                                onOpenSearch: widget.onOpenSearch,
-                                onAnimationEnd: _animationEndCallback,
-                              ),
-                            );
-                          }
-                        }(),
-                      ),
-                      Expanded(child: content),
-                    ]),
-                  ),
-                ]);
-              } else {
-                paneResult = Stack(children: [
-                  Padding(
-                    padding: EdgeInsetsDirectional.only(
-                      top: appBarPadding.resolve(direction).top,
-                      start: pane.size?.compactWidth ??
-                          kCompactNavigationPaneWidth,
+                  );
+            if (_displayMode != PaneDisplayMode.expanded) {
+              PageStorage.of(
+                context,
+              ).writeState(context, false, identifier: 'openModeOpen');
+            }
+            switch (_displayMode) {
+              case PaneDisplayMode.top:
+                _isTransitioning = false;
+                paneResult = Column(
+                  children: [
+                    ?widget.titleBar,
+                    _NavigationViewPaneScrollConfiguration(
+                      controller: paneScrollController,
+                      hasTitleBar: hasTitleBar,
+                      child: _TopNavigationPane(pane: pane),
                     ),
-                    child: content,
-                  ),
-                  // If the overlay is open, add a gesture detector above the
-                  // content to close if the user click outside the overlay
-                  if (_compactOverlayOpen && !openedWithoutOverlay)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        onTap: toggleCompactOpenMode,
-                        child: AbsorbPointer(
-                          child: Semantics(
-                            label: localizations.modalBarrierDismissLabel,
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  PaneScrollConfiguration(
-                    child: () {
-                      if (_compactOverlayOpen) {
-                        return ClipRect(
-                          child: Mica(
-                            key: _overlayKey,
-                            backgroundColor: theme.overlayBackgroundColor,
-                            elevation: 10.0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: const Color(0xFF6c6c6c),
-                                  width: 0.15,
-                                ),
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              margin: const EdgeInsets.symmetric(
-                                vertical: 1.0,
-                              ),
-                              padding: appBarPadding,
-                              child: _OpenNavigationPane(
-                                theme: theme,
-                                pane: pane,
-                                paneKey: _panelKey,
-                                listKey: _listKey,
-                                onToggle: toggleCompactOpenMode,
-                                onItemSelected: toggleCompactOpenMode,
-                                onAnimationEnd: _animationEndCallback,
-                              ),
-                            ),
-                          ),
-                        );
-                      } else {
-                        return Mica(
-                          key: _overlayKey,
-                          backgroundColor: theme.backgroundColor,
-                          child: Padding(
-                            padding: EdgeInsetsDirectional.only(
-                              top: appBarPadding.resolve(direction).top,
-                            ),
-                            child: _CompactNavigationPane(
+                    Expanded(child: content),
+                  ],
+                );
+              case PaneDisplayMode.compact:
+                paneResult = _buildCompactView(
+                  context: context,
+                  pane: pane,
+                  content: content,
+                  constraints: constraints,
+                );
+              case PaneDisplayMode.expanded:
+                paneResult = Column(
+                  children: [
+                    ?widget.titleBar,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          _NavigationViewPaneScrollConfiguration(
+                            controller: paneScrollController,
+                            hasTitleBar: hasTitleBar,
+                            child: _OpenNavigationPane(
+                              theme: theme,
                               pane: pane,
-                              paneKey: _panelKey,
-                              listKey: _listKey,
-                              onToggle: toggleCompactOpenMode,
-                              onOpenSearch: widget.onOpenSearch,
+                              initiallyOpen:
+                                  PageStorage.of(context).readState(
+                                        context,
+                                        identifier: 'openModeOpen',
+                                      )
+                                      as bool? ??
+                                  mounted,
                               onAnimationEnd: _animationEndCallback,
                             ),
                           ),
-                        );
-                      }
-                    }(),
-                  ),
-                  appBar,
-                ]);
+                          Expanded(child: content),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              case PaneDisplayMode.minimal:
+                paneResult = _buildMinimalView(
+                  context: context,
+                  pane: pane,
+                  content: content,
+                );
+              default:
+                paneResult = content;
+            }
+          }
+        } else if (widget.content != null) {
+          paneResult = Column(
+            children: [
+              ?widget.titleBar,
+              Expanded(child: widget.content!),
+            ],
+          );
+        } else {
+          return const SizedBox.shrink();
+        }
+
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.escape): () {
+              if (isPaneOpen &&
+                  (_displayMode == PaneDisplayMode.compact ||
+                      _displayMode == PaneDisplayMode.minimal)) {
+                closePane();
               }
-              break;
-            case PaneDisplayMode.open:
-              paneResult = Column(children: [
-                appBar,
-                Expanded(
-                  child: Row(children: [
-                    PaneScrollConfiguration(
+            },
+          },
+          child: Mica(
+            backgroundColor: theme.backgroundColor,
+            child: NavigationViewContext(
+              displayMode: compactOverlayOpen
+                  ? PaneDisplayMode.expanded
+                  : _displayMode,
+              isMinimalPaneOpen: isMinimalPaneOpen,
+              isCompactOverlayOpen: compactOverlayOpen,
+              pane: widget.pane,
+              previousItemIndex: _previousItemIndex,
+              isTransitioning: _isTransitioning,
+              toggleButtonPosition: toggleButtonPosition,
+              canPop: _history.isNotEmpty,
+              child: paneResult,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Builds the compact view.
+  ///
+  /// The compact view has these possible layouts:
+  ///
+  ///  * The compact view
+  ///  * The compact view with an overlay, if there isn't enough space
+  ///  * The compact view that opens without an overlay, if there is enough space
+  Widget _buildCompactView({
+    required final BuildContext context,
+    required final NavigationPane pane,
+    required final Widget content,
+    required final BoxConstraints constraints,
+  }) {
+    final theme = NavigationPaneTheme.of(context);
+    final localizations = FluentLocalizations.of(context);
+
+    // Ensure the overlay state is correct
+    _compactOverlayOpen =
+        PageStorage.of(
+              context,
+            ).readState(context, identifier: 'compactOverlayOpen')
+            as bool? ??
+        _compactOverlayOpen;
+
+    final openSize = pane.size?.openPaneWidth ?? kOpenNavigationPaneWidth;
+    final paneTopPadding = TitleBar.calculateHeight(context, widget.titleBar);
+
+    final noOverlayRequired = constraints.maxWidth / 2.5 > openSize;
+    final openedWithoutOverlay =
+        _compactOverlayOpen && constraints.maxWidth / 2.5 > openSize;
+
+    if (noOverlayRequired) {
+      return Column(
+        children: [
+          ?widget.titleBar,
+          Expanded(
+            child: Row(
+              children: [
+                _NavigationViewPaneScrollConfiguration(
+                  controller: paneScrollController,
+                  hasTitleBar: widget.titleBar != null,
+                  child: () {
+                    if (openedWithoutOverlay) {
+                      return Mica(
+                        key: _overlayKey,
+                        backgroundColor: theme.backgroundColor,
+                        child: Container(
+                          margin: const EdgeInsetsDirectional.symmetric(
+                            vertical: 1,
+                          ),
+                          child: _OpenNavigationPane(
+                            theme: theme,
+                            pane: pane,
+                            initiallyOpen: true,
+                            onAnimationEnd: _animationEndCallback,
+                          ),
+                        ),
+                      );
+                    } else {
+                      return KeyedSubtree(
+                        key: _overlayKey,
+                        child: _CompactNavigationPane(
+                          pane: pane,
+                          onOpenSearch: widget.onOpenSearch,
+                          onAnimationEnd: _animationEndCallback,
+                        ),
+                      );
+                    }
+                  }(),
+                ),
+                Expanded(child: content),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else {
+      return Stack(
+        children: [
+          Padding(
+            padding: EdgeInsetsDirectional.only(
+              top: TitleBar.calculateHeight(context, widget.titleBar),
+              start: pane.size?.compactWidth ?? kCompactNavigationPaneWidth,
+            ),
+            child: content,
+          ),
+          if (_compactOverlayOpen && !openedWithoutOverlay)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: toggleCompactOpenMode,
+                child: AbsorbPointer(
+                  child: Semantics(
+                    label: localizations.modalBarrierDismissLabel,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+          _NavigationViewPaneScrollConfiguration(
+            controller: paneScrollController,
+            hasTitleBar: hasTitleBar,
+            child: () {
+              if (_compactOverlayOpen) {
+                return ClipRect(
+                  child: Mica(
+                    key: _overlayKey,
+                    backgroundColor: theme.overlayBackgroundColor,
+                    elevation: 10,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: const Color(0xFF6c6c6c),
+                          width: 0.15,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      margin: const EdgeInsetsDirectional.symmetric(
+                        vertical: 1,
+                      ),
+                      padding: EdgeInsetsDirectional.only(top: paneTopPadding),
                       child: _OpenNavigationPane(
                         theme: theme,
                         pane: pane,
-                        paneKey: _panelKey,
-                        listKey: _listKey,
-                        initiallyOpen: PageStorage.of(context).readState(
-                              context,
-                              identifier: 'openModeOpen',
-                            ) as bool? ??
-                            mounted,
+                        onItemSelected: toggleCompactOpenMode,
                         onAnimationEnd: _animationEndCallback,
                       ),
                     ),
-                    Expanded(child: content),
-                  ]),
-                ),
-              ]);
-              break;
-            case PaneDisplayMode.minimal:
-              var openSize =
-                  pane.size?.openPaneWidth ?? kOpenNavigationPaneWidth;
-
-              paneResult = Stack(children: [
-                PositionedDirectional(
-                  top: 0,
-                  start: 0,
-                  end: 0,
-                  height: widget.appBar?.finalHeight(context) ?? 0.0,
-                  child: ColoredBox(
-                    color: FluentTheme.of(context).scaffoldBackgroundColor,
                   ),
-                ),
-                PositionedDirectional(
-                  top: widget.appBar?.finalHeight(context) ?? 0.0,
-                  start: 0.0,
-                  end: 0.0,
-                  bottom: 0.0,
-                  child: content,
-                ),
-                if (minimalPaneOpen)
-                  Positioned.fill(
-                    child: GestureDetector(
-                      onTap: () => minimalPaneOpen = false,
-                      child: AbsorbPointer(
-                        child: Semantics(
-                          label: localizations.modalBarrierDismissLabel,
-                          child: const SizedBox.expand(),
-                        ),
-                      ),
-                    ),
-                  ),
-                AnimatedPositionedDirectional(
+                );
+              } else {
+                return Mica(
                   key: _overlayKey,
-                  duration: theme.animationDuration ?? Duration.zero,
-                  curve: theme.animationCurve ?? Curves.linear,
-                  start: minimalPaneOpen ? 0.0 : -openSize,
-                  width: openSize,
-                  height: MediaQuery.sizeOf(context).height,
-                  onEnd: () {
-                    _isTransitioning = false;
-                    if (mounted) setState(() {});
-                  },
-                  child: PaneScrollConfiguration(
-                    child: Mica(
-                      backgroundColor: theme.overlayBackgroundColor,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: const Color(0xFF6c6c6c),
-                            width: 0.15,
-                          ),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        margin: const EdgeInsets.symmetric(vertical: 1.0),
-                        padding: appBarPadding,
-                        child: _OpenNavigationPane(
-                          theme: theme,
-                          pane: pane,
-                          paneKey: _panelKey,
-                          listKey: _listKey,
-                          onItemSelected: () => minimalPaneOpen = false,
-                        ),
-                      ),
+                  backgroundColor: theme.backgroundColor,
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(top: paneTopPadding),
+                    child: _CompactNavigationPane(
+                      pane: pane,
+                      onOpenSearch: widget.onOpenSearch,
+                      onAnimationEnd: _animationEndCallback,
                     ),
                   ),
-                ),
-                appBar,
-              ]);
-              break;
-            default:
-              paneResult = content;
-          }
-        }
-      } else if (widget.content != null) {
-        paneResult = Column(children: [
-          appBar,
-          Expanded(child: widget.content!),
-        ]);
-      } else {
-        return const SizedBox.shrink();
-      }
-
-      return Mica(
-        backgroundColor: theme.backgroundColor,
-        child: InheritedNavigationView(
-          displayMode: _compactOverlayOpen ? PaneDisplayMode.open : displayMode,
-          minimalPaneOpen: minimalPaneOpen,
-          pane: widget.pane,
-          previousItemIndex: _previousItemIndex,
-          isTransitioning: _isTransitioning,
-          child: PaneItemKeys(keys: _itemKeys, child: paneResult),
-        ),
-      );
-    });
-  }
-
-  // ignore: non_constant_identifier_names
-  Widget PaneScrollConfiguration({required Widget child}) {
-    return Builder(builder: (context) {
-      return PrimaryScrollController(
-        controller: paneScrollController,
-        child: ScrollConfiguration(
-          behavior: widget.pane?.scrollBehavior ??
-              const NavigationViewScrollBehavior(),
-          child: MediaQuery.removePadding(
-            context: context,
-            removeTop: widget.appBar != null,
-            child: RepaintBoundary(child: child),
-          ),
-        ),
-      );
-    });
-  }
-}
-
-/// The bar displayed at the top of the app. It can adapt itself to
-/// all the display modes.
-///
-/// See also:
-///
-///   * [NavigationView], which uses this to render the app bar
-class NavigationAppBar with Diagnosticable {
-  final Key? key;
-
-  /// The widget at the beggining of the app bar, before [title].
-  ///
-  /// Typically the [leading] widget is an [Icon] or an [IconButton].
-  ///
-  /// If this is null and [automaticallyImplyLeading] is set to true, the
-  /// view will imply an appropriate widget. If  the parent [Navigator] can
-  /// go back, the app bar will use an [IconButton] that calls [Navigator.maybePop].
-  ///
-  /// See also:
-  ///   * [automaticallyImplyLeading], that controls whether we should try to
-  ///     imply the leading widget, if [leading] is null
-  final Widget? leading;
-
-  /// {@macro flutter.material.appbar.automaticallyImplyLeading}
-  final bool automaticallyImplyLeading;
-
-  /// Typically a [Text] widget that contains the app name.
-  final Widget? title;
-
-  /// A list of Widgets to display in a row after the [title] widget.
-  ///
-  /// Typically these widgets are [IconButton]s representing common
-  /// operations.
-  final Widget? actions;
-
-  /// The height of the app bar. [_kDefaultAppBarHeight] is used by default
-  final double height;
-
-  /// The background color of this app bar.
-  final Color? backgroundColor;
-
-  /// Creates a fluent-styled app bar.
-  const NavigationAppBar({
-    this.key,
-    this.leading,
-    this.title,
-    this.actions,
-    this.automaticallyImplyLeading = true,
-    this.height = _kDefaultAppBarHeight,
-    this.backgroundColor,
-  });
-
-  @override
-  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
-    super.debugFillProperties(properties);
-    properties
-      ..add(FlagProperty(
-        'automatically imply leading',
-        value: automaticallyImplyLeading,
-        ifFalse: 'do not imply leading',
-        defaultValue: true,
-      ))
-      ..add(ColorProperty('backgroundColor', backgroundColor))
-      ..add(DoubleProperty(
-        'height',
-        height,
-        defaultValue: _kDefaultAppBarHeight,
-      ));
-  }
-
-  Widget _buildLeading([bool imply = true]) {
-    return Builder(builder: (context) {
-      late Widget widget;
-      if (leading != null) {
-        widget = leading!;
-      } else if (automaticallyImplyLeading && imply) {
-        final ModalRoute<dynamic>? parentRoute = ModalRoute.of(context);
-        final canPop = parentRoute?.canPop ?? false;
-
-        assert(debugCheckHasFluentLocalizations(context));
-        assert(debugCheckHasFluentTheme(context));
-        final localizations = FluentLocalizations.of(context);
-        final onPressed = canPop ? () => Navigator.maybePop(context) : null;
-        widget = NavigationPaneTheme(
-          data: NavigationPaneTheme.of(context).merge(NavigationPaneThemeData(
-            unselectedIconColor: WidgetStateProperty.resolveWith((states) {
-              if (states.isDisabled) {
-                return ButtonThemeData.buttonColor(context, states);
+                );
               }
-              return ButtonThemeData.uncheckedInputColor(
-                FluentTheme.of(context),
-                states,
-              ).basedOnLuminance();
-            }),
-          )),
-          child: Builder(
-            builder: (context) => PaneItem(
-              icon: const Icon(FluentIcons.back, size: 14.0),
-              title: Text(localizations.backButtonTooltip),
-              body: const SizedBox.shrink(),
-            ).build(
-              context,
-              false,
-              onPressed,
-              displayMode: PaneDisplayMode.compact,
+            }(),
+          ),
+          ?widget.titleBar,
+        ],
+      );
+    }
+  }
+
+  Widget _buildMinimalView({
+    required BuildContext context,
+    required NavigationPane pane,
+    required Widget content,
+  }) {
+    final theme = NavigationPaneTheme.of(context);
+    final fluentTheme = FluentTheme.of(context);
+    final localizations = FluentLocalizations.of(context);
+
+    final openSize = pane.size?.openPaneWidth ?? kOpenNavigationPaneWidth;
+    final showPaneToggle =
+        toggleButtonPosition == PaneToggleButtonPosition.pane;
+    final titleBarHeight = TitleBar.calculateHeight(context, widget.titleBar);
+    final topOffset = titleBarHeight > (showPaneToggle ? 38.0 : 0.0)
+        ? titleBarHeight
+        : (showPaneToggle ? 38.0 : 0.0);
+
+    return Stack(
+      children: [
+        PositionedDirectional(
+          top: 0,
+          start: 0,
+          end: 0,
+          height: topOffset,
+          child: ColoredBox(color: fluentTheme.scaffoldBackgroundColor),
+        ),
+        PositionedDirectional(
+          top: topOffset,
+          start: 0,
+          end: 0,
+          bottom: 0,
+          child: content,
+        ),
+        if (isMinimalPaneOpen)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => isMinimalPaneOpen = false,
+              child: AbsorbPointer(
+                child: Semantics(
+                  label: localizations.modalBarrierDismissLabel,
+                  child: const SizedBox.expand(),
+                ),
+              ),
             ),
           ),
-        );
-      } else {
-        return const SizedBox.shrink();
-      }
-      widget = ConstrainedBox(
-          constraints:
-              const BoxConstraints(minWidth: kCompactNavigationPaneWidth),
-          child: widget);
-      return widget;
-    });
+        AnimatedPositionedDirectional(
+          key: _overlayKey,
+          duration: theme.animationDuration ?? Duration.zero,
+          curve: theme.animationCurve ?? Curves.linear,
+          start: isMinimalPaneOpen ? 0.0 : -openSize,
+          width: openSize,
+          top: 0,
+          bottom: 0,
+          onEnd: () {
+            _isTransitioning = false;
+            if (mounted) setState(() {});
+          },
+          child: _NavigationViewPaneScrollConfiguration(
+            controller: paneScrollController,
+            hasTitleBar: hasTitleBar,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: fluentTheme.resources.cardStrokeColorDefault,
+                  width: 0.5,
+                ),
+                borderRadius: const BorderRadius.horizontal(
+                  right: Radius.circular(8),
+                ),
+                boxShadow: kElevationToShadow[10],
+              ),
+              margin: const EdgeInsetsDirectional.symmetric(vertical: 1),
+              child: _wrapWithAcrylic(
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.horizontal(
+                    right: Radius.circular(8),
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsetsDirectional.only(top: titleBarHeight),
+                  child: _OpenNavigationPane(
+                    theme: theme,
+                    pane: pane,
+                    usePanelKey: false,
+                    onItemSelected: () {
+                      if (_displayMode == PaneDisplayMode.minimal) {
+                        isMinimalPaneOpen = false;
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (showPaneToggle && !isMinimalPaneOpen)
+          PositionedDirectional(top: 0, start: 0, child: pane.toggleButton!),
+        ?widget.titleBar,
+      ],
+    );
   }
 
-  /// Determines the height of this app bar based on its height and the top
-  /// padding from the system.
-  @visibleForTesting
-  double finalHeight(BuildContext context) {
-    assert(debugCheckHasMediaQuery(context));
-    final topPadding = MediaQuery.paddingOf(context).top;
-    return height + topPadding;
+  Widget _wrapWithAcrylic({
+    required Widget child,
+    ShapeBorder? shape,
+    Color? tint,
+    double? tintAlpha,
+    double? luminosityAlpha,
+    double? blurAmount,
+  }) {
+    return Builder(
+      builder: (context) {
+        final theme = NavigationPaneTheme.of(context);
+        final pane = NavigationView.dataOf(context).pane;
+
+        Widget widget = ClipRect(
+          child: Acrylic(
+            tint: tint ?? theme.overlayBackgroundColor,
+            tintAlpha: tintAlpha ?? 0.9,
+            luminosityAlpha: luminosityAlpha,
+            blurAmount: blurAmount ?? 50,
+            shape: shape,
+            child: child,
+          ),
+        );
+
+        if (pane?.acrylicDisabled ?? false) {
+          widget = DisableAcrylic(child: widget);
+        }
+
+        return widget;
+      },
+    );
   }
 }
 
-class _NavigationAppBar extends StatelessWidget {
-  const _NavigationAppBar({
-    required this.appBar,
-    required this.additionalLeading,
+class _NavigationViewPaneScrollConfiguration extends StatelessWidget {
+  const _NavigationViewPaneScrollConfiguration({
+    required this.controller,
+    required this.hasTitleBar,
+    required this.child,
   });
 
-  final NavigationAppBar appBar;
-  final Widget? additionalLeading;
+  final ScrollController controller;
+  final bool hasTitleBar;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    assert(debugCheckHasMediaQuery(context));
-    assert(debugCheckHasFluentLocalizations(context));
-
-    final displayMode = InheritedNavigationView.maybeOf(context)?.displayMode ??
-        PaneDisplayMode.top;
-    final leading = appBar._buildLeading(displayMode != PaneDisplayMode.top);
-    final title = () {
-      if (appBar.title != null) {
-        assert(debugCheckHasFluentTheme(context));
-        final theme = NavigationPaneTheme.of(context);
-
-        return AnimatedPadding(
-          duration: theme.animationDuration ?? Duration.zero,
-          curve: theme.animationCurve ?? Curves.linear,
-          padding: (theme.iconPadding ?? EdgeInsets.zero).add(
-            const EdgeInsetsDirectional.only(start: 6.0),
-          ),
-          child: DefaultTextStyle.merge(
-            style: FluentTheme.of(context).typography.caption,
-            maxLines: 1,
-            softWrap: false,
-            child: appBar.title!,
-          ),
-        );
-      } else {
-        return const SizedBox.shrink();
-      }
-    }();
-    late Widget result;
-    switch (displayMode) {
-      case PaneDisplayMode.top:
-        result = Stack(children: [
-          Row(children: [
-            leading,
-            if (additionalLeading != null) additionalLeading!,
-            Expanded(child: title),
-          ]),
-          if (appBar.actions != null)
-            PositionedDirectional(end: 0, child: appBar.actions!),
-        ]);
-        break;
-      case PaneDisplayMode.minimal:
-      case PaneDisplayMode.open:
-      case PaneDisplayMode.compact:
-        result = Stack(children: [
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              leading,
-              if (additionalLeading != null) additionalLeading!,
-              Flexible(child: title),
-            ]),
-          ),
-          if (appBar.actions != null)
-            PositionedDirectional(
-              start: 0,
-              end: 0.0,
-              top: 0.0,
-              bottom: 0.0,
-              child: Align(
-                alignment: AlignmentDirectional.topEnd,
-                child: appBar.actions!,
-              ),
-            ),
-        ]);
-        break;
-      default:
-        return const SizedBox.shrink();
-    }
-    final topPadding = MediaQuery.paddingOf(context).top;
-
-    return Container(
-      color: appBar.backgroundColor,
-      height: appBar.finalHeight(context),
-      padding: EdgeInsetsDirectional.only(top: topPadding),
-      child: result,
+    return PrimaryScrollController(
+      controller: controller,
+      child: ScrollConfiguration(
+        behavior: const NavigationViewScrollBehavior(),
+        child: MediaQuery.removePadding(
+          context: context,
+          removeTop: hasTitleBar,
+          child: RepaintBoundary(child: child),
+        ),
+      ),
     );
   }
 }
@@ -1047,13 +1203,17 @@ class _NavigationAppBar extends StatelessWidget {
 /// It generates a [Scrollbar] using the global scroll controller provided by
 /// [NavigationView]
 class NavigationViewScrollBehavior extends FluentScrollBehavior {
+  /// Creates a navigation view scroll behavior.
   const NavigationViewScrollBehavior();
 
   @override
-  Widget buildScrollbar(context, child, details) {
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
     return Scrollbar(
       controller: details.controller,
-      thumbVisibility: false,
       interactive: true,
       child: child,
     );

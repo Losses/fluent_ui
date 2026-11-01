@@ -2,28 +2,88 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-/// A check box is used to select or deselect action items. It can be used for a
-/// single item or for a list of multiple items that a user can choose from. The
-/// control has three selection states: unselected, selected, and indeterminate.
-/// Use the indeterminate state when a collection of sub-choices have both
-/// unselected and selected states.
+/// A check box is used to select or deselect action items.
+///
+/// It can be used for a single item or for a list of multiple items that a user
+/// can choose from. The control has three selection states: unselected (`false`),
+/// selected (`true`), and indeterminate (`null`). Use the indeterminate state
+/// when a collection of sub-choices have both unselected and selected states.
 ///
 /// ![Checkbox Preview](https://learn.microsoft.com/en-us/windows/apps/design/controls/images/templates-checkbox-states-default.png)
 ///
+/// {@tool snippet}
+/// This example shows a basic checkbox:
+///
+/// ```dart
+/// bool isChecked = false;
+///
+/// Checkbox(
+///   checked: isChecked,
+///   onChanged: (value) => setState(() => isChecked = value ?? false),
+/// )
+/// ```
+/// {@end-tool}
+///
+/// {@tool snippet}
+/// This example shows a checkbox with a label:
+///
+/// ```dart
+/// Checkbox(
+///   checked: isAccepted,
+///   content: Text('I accept the terms and conditions'),
+///   onChanged: (value) => setState(() => isAccepted = value ?? false),
+/// )
+/// ```
+/// {@end-tool}
+///
+/// {@tool snippet}
+/// This example shows a three-state checkbox used to represent a group:
+///
+/// ```dart
+/// // null = indeterminate (some children checked)
+/// // true = all children checked
+/// // false = no children checked
+/// bool? parentChecked;
+///
+/// Checkbox(
+///   checked: parentChecked,
+///   content: Text('Select all'),
+///   onChanged: (value) {
+///     setState(() {
+///       // When clicked, toggle between checked and unchecked
+///       parentChecked = value == true ? true : false;
+///     });
+///   },
+/// )
+/// ```
+/// {@end-tool}
+///
+/// ## Checkbox vs other controls
+///
+/// Use a checkbox when:
+/// * Users can select zero, one, or multiple items from a list
+/// * Items in the list are independent (selecting one doesn't affect others)
+/// * You want to show the current selection state at a glance
+///
+/// Consider using:
+/// * [RadioButton] when users must select exactly one option
+/// * [ToggleSwitch] for binary on/off settings that take effect immediately
+/// * [ToggleButton] for a button that maintains a toggled state
+///
 /// See also:
 ///
-///   * <https://learn.microsoft.com/en-us/windows/apps/design/controls/checkbox>
-///   * [ToggleSwitch], which represents a physical switch that allows users to
-/// turn things on or off
-///   * [RadioButton], let users select one option from a collection of two or
-/// more mutually exclusive, visible options
-///   * [ToggleButton], a button that can be on or off.
+///  * [ToggleSwitch], which represents a physical switch that allows users to
+///    turn things on or off immediately
+///  * [RadioButton], lets users select one option from a collection of two or
+///    more mutually exclusive, visible options
+///  * [ToggleButton], a button that can be toggled on or off
+///  * <https://learn.microsoft.com/en-us/windows/apps/design/controls/checkbox>
 class Checkbox extends StatelessWidget {
   /// Creates a checkbox.
   const Checkbox({
-    super.key,
     required this.checked,
     required this.onChanged,
+    super.key,
     this.style,
     this.content,
     this.semanticLabel,
@@ -74,12 +134,14 @@ class Checkbox extends StatelessWidget {
       ..add(DiagnosticsProperty<CheckboxThemeData>('style', style))
       ..add(StringProperty('semanticLabel', semanticLabel))
       ..add(DiagnosticsProperty<FocusNode>('focusNode', focusNode))
-      ..add(FlagProperty(
-        'autofocus',
-        value: autofocus,
-        defaultValue: false,
-        ifFalse: 'manual focus',
-      ));
+      ..add(
+        FlagProperty(
+          'autofocus',
+          value: autofocus,
+          defaultValue: false,
+          ifFalse: 'manual focus',
+        ),
+      );
   }
 
   @override
@@ -114,7 +176,8 @@ class Checkbox extends StatelessWidget {
           }(),
           child: checked == null
               ? _ThirdStateDash(
-                  color: style.thirdstateIconColor?.resolve(state) ??
+                  color:
+                      style.thirdstateIconColor?.resolve(state) ??
                       style.checkedIconColor?.resolve(state) ??
                       FluentTheme.of(context).inactiveColor,
                 )
@@ -134,19 +197,22 @@ class Checkbox extends StatelessWidget {
                 ),
         );
         if (content != null) {
-          child = Row(mainAxisSize: MainAxisSize.min, children: [
-            child,
-            const SizedBox(width: 8.0),
-            DefaultTextStyle.merge(
-              style: TextStyle(color: style.foregroundColor?.resolve(state)),
-              child: IconTheme.merge(
-                data: IconThemeData(
-                  color: style.foregroundColor?.resolve(state),
+          child = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              child,
+              const SizedBox(width: 8),
+              DefaultTextStyle.merge(
+                style: TextStyle(color: style.foregroundColor?.resolve(state)),
+                child: IconTheme.merge(
+                  data: IconThemeData(
+                    color: style.foregroundColor?.resolve(state),
+                  ),
+                  child: content!,
                 ),
-                child: content!,
               ),
-            ),
-          ]);
+            ],
+          );
         }
         return Semantics(
           checked: checked,
@@ -168,45 +234,47 @@ class _ThirdStateDash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 1.4,
-      width: 8,
-      color: color,
-    );
+    return Container(height: 1.4, width: 8, color: color);
   }
 }
 
+/// A theme that controls how descendant [Checkbox]es should look like.
+///
+/// See also:
+///
+/// * [Checkbox], which is the widget that uses this theme.
+/// * [CheckboxThemeData], which is the theme data for [Checkbox] widgets.
 class CheckboxTheme extends InheritedTheme {
-  /// Creates a button theme that controls how descendant [Checkbox]es should
+  /// Creates a theme that controls how descendant [Checkbox]es should
   /// look like.
-  const CheckboxTheme({
-    super.key,
-    required super.child,
-    required this.data,
-  });
+  const CheckboxTheme({required super.child, required this.data, super.key});
 
+  /// The theme data for the checkbox theme.
   final CheckboxThemeData data;
 
-  /// Creates a button theme that controls how descendant [Checkbox]es should
-  /// look like, and merges in the current button theme, if any.
+  /// Creates a theme that merges the nearest [CheckboxTheme] with [data].
   static Widget merge({
-    Key? key,
     required CheckboxThemeData data,
     required Widget child,
+    Key? key,
   }) {
-    return Builder(builder: (BuildContext context) {
-      return CheckboxTheme(
-        key: key,
-        data: _getInheritedCheckboxThemeData(context).merge(data),
-        child: child,
-      );
-    });
+    return Builder(
+      builder: (context) {
+        return CheckboxTheme(
+          key: key,
+          data: CheckboxTheme.of(context).merge(data),
+          child: child,
+        );
+      },
+    );
   }
 
-  /// The data from the closest instance of this class that encloses the given
-  /// context.
+  /// Returns the closest [CheckboxThemeData] which encloses the given context.
   ///
-  /// Defaults to [FluentThemeData.checkboxTheme]
+  /// Resolution order:
+  /// 1. Defaults from [CheckboxThemeData.standard]
+  /// 2. Global theme from [FluentThemeData.checkboxTheme]
+  /// 3. Local [CheckboxTheme] ancestor
   ///
   /// Typical usage is as follows:
   ///
@@ -215,16 +283,12 @@ class CheckboxTheme extends InheritedTheme {
   /// ```
   static CheckboxThemeData of(BuildContext context) {
     assert(debugCheckHasFluentTheme(context));
-    return CheckboxThemeData.standard(FluentTheme.of(context)).merge(
-      _getInheritedCheckboxThemeData(context),
-    );
-  }
-
-  static CheckboxThemeData _getInheritedCheckboxThemeData(
-      BuildContext context) {
-    final checkboxTheme =
-        context.dependOnInheritedWidgetOfExactType<CheckboxTheme>();
-    return checkboxTheme?.data ?? FluentTheme.of(context).checkboxTheme;
+    final theme = FluentTheme.of(context);
+    final inheritedTheme = context
+        .dependOnInheritedWidgetOfExactType<CheckboxTheme>();
+    return CheckboxThemeData.standard(
+      theme,
+    ).merge(theme.checkboxTheme).merge(inheritedTheme?.data);
   }
 
   @override
@@ -233,12 +297,19 @@ class CheckboxTheme extends InheritedTheme {
   }
 
   @override
-  bool updateShouldNotify(CheckboxTheme oldWidget) {
-    return oldWidget.data != data;
-  }
+  bool updateShouldNotify(CheckboxTheme oldWidget) => data != oldWidget.data;
 }
 
 @immutable
+/// Theme data for [Checkbox] widgets.
+///
+/// This class defines the default styles for different states of a checkbox.
+///
+/// See also:
+///
+///  * [CheckboxTheme], which is the theme that uses this data.
+///  * [Checkbox], which is the widget that uses this data.
+///  * [WidgetStateProperty], which is the property that controls the style of the checkbox.
 class CheckboxThemeData with Diagnosticable {
   /// The decoration of the checkbox when it's checked
   final WidgetStateProperty<Decoration?>? checkedDecoration;
@@ -284,8 +355,9 @@ class CheckboxThemeData with Diagnosticable {
     this.foregroundColor,
   });
 
+  /// Creates the standard [CheckboxThemeData] based on the given [theme].
   factory CheckboxThemeData.standard(FluentThemeData theme) {
-    final BorderRadiusGeometry radius = BorderRadius.circular(6.0);
+    final BorderRadiusGeometry radius = BorderRadius.circular(6);
     return CheckboxThemeData(
       foregroundColor: WidgetStateProperty.resolveWith((states) {
         return states.isDisabled ? theme.resources.textFillColorDisabled : null;
@@ -347,20 +419,48 @@ class CheckboxThemeData with Diagnosticable {
       margin: EdgeInsetsGeometry.lerp(a?.margin, b?.margin, t),
       padding: EdgeInsetsGeometry.lerp(a?.padding, b?.padding, t),
       icon: t < 0.5 ? a?.icon : b?.icon,
-      checkedIconColor: WidgetStateProperty.lerp<Color?>(
-          a?.checkedIconColor, b?.checkedIconColor, t, Color.lerp),
-      uncheckedIconColor: WidgetStateProperty.lerp<Color?>(
-          a?.uncheckedIconColor, b?.uncheckedIconColor, t, Color.lerp),
-      thirdstateIconColor: WidgetStateProperty.lerp<Color?>(
-          a?.thirdstateIconColor, b?.thirdstateIconColor, t, Color.lerp),
-      checkedDecoration: WidgetStateProperty.lerp<Decoration?>(
-          a?.checkedDecoration, b?.checkedDecoration, t, Decoration.lerp),
-      uncheckedDecoration: WidgetStateProperty.lerp<Decoration?>(
-          a?.uncheckedDecoration, b?.uncheckedDecoration, t, Decoration.lerp),
-      thirdstateDecoration: WidgetStateProperty.lerp<Decoration?>(
-          a?.thirdstateDecoration, b?.thirdstateDecoration, t, Decoration.lerp),
-      foregroundColor: WidgetStateProperty.lerp<Color?>(
-          a?.foregroundColor, b?.foregroundColor, t, Color.lerp),
+      checkedIconColor: lerpWidgetStateProperty<Color?>(
+        a?.checkedIconColor,
+        b?.checkedIconColor,
+        t,
+        Color.lerp,
+      ),
+      uncheckedIconColor: lerpWidgetStateProperty<Color?>(
+        a?.uncheckedIconColor,
+        b?.uncheckedIconColor,
+        t,
+        Color.lerp,
+      ),
+      thirdstateIconColor: lerpWidgetStateProperty<Color?>(
+        a?.thirdstateIconColor,
+        b?.thirdstateIconColor,
+        t,
+        Color.lerp,
+      ),
+      checkedDecoration: lerpWidgetStateProperty<Decoration?>(
+        a?.checkedDecoration,
+        b?.checkedDecoration,
+        t,
+        Decoration.lerp,
+      ),
+      uncheckedDecoration: lerpWidgetStateProperty<Decoration?>(
+        a?.uncheckedDecoration,
+        b?.uncheckedDecoration,
+        t,
+        Decoration.lerp,
+      ),
+      thirdstateDecoration: lerpWidgetStateProperty<Decoration?>(
+        a?.thirdstateDecoration,
+        b?.thirdstateDecoration,
+        t,
+        Decoration.lerp,
+      ),
+      foregroundColor: lerpWidgetStateProperty<Color?>(
+        a?.foregroundColor,
+        b?.foregroundColor,
+        t,
+        Color.lerp,
+      ),
     );
   }
 
@@ -384,42 +484,56 @@ class CheckboxThemeData with Diagnosticable {
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
     properties
-      ..add(ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
-        'thirdstateDecoration',
-        thirdstateDecoration,
-      ))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
-        'uncheckedDecoration',
-        uncheckedDecoration,
-      ))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
-        'checkedDecoration',
-        checkedDecoration,
-      ))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Color?>?>.has(
-        'thirdstateIconColor',
-        thirdstateIconColor,
-      ))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Color?>?>.has(
-        'uncheckedIconColor',
-        uncheckedIconColor,
-      ))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Color?>?>.has(
-        'checkedIconColor',
-        checkedIconColor,
-      ))
-      ..add(IconDataProperty('icon', icon))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
-        'checkedDecoration',
-        checkedDecoration,
-      ))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
-        'uncheckedDecoration',
-        uncheckedDecoration,
-      ))
       ..add(
-        DiagnosticsProperty<EdgeInsetsGeometry?>('padding', padding),
+        ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
+          'thirdstateDecoration',
+          thirdstateDecoration,
+        ),
       )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
+          'uncheckedDecoration',
+          uncheckedDecoration,
+        ),
+      )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
+          'checkedDecoration',
+          checkedDecoration,
+        ),
+      )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Color?>?>.has(
+          'thirdstateIconColor',
+          thirdstateIconColor,
+        ),
+      )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Color?>?>.has(
+          'uncheckedIconColor',
+          uncheckedIconColor,
+        ),
+      )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Color?>?>.has(
+          'checkedIconColor',
+          checkedIconColor,
+        ),
+      )
+      ..add(IconDataProperty('icon', icon))
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
+          'checkedDecoration',
+          checkedDecoration,
+        ),
+      )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
+          'uncheckedDecoration',
+          uncheckedDecoration,
+        ),
+      )
+      ..add(DiagnosticsProperty<EdgeInsetsGeometry?>('padding', padding))
       ..add(DiagnosticsProperty<EdgeInsetsGeometry?>('margin', margin))
       ..add(DiagnosticsProperty('foregroundColor', foregroundColor));
   }
@@ -454,7 +568,7 @@ class _Icon extends StatelessWidget {
     final iconOpacity = iconTheme.opacity ?? 1.0;
     var iconColor = color ?? iconTheme.color!;
     if (iconOpacity != 1.0) {
-      iconColor = iconColor.withOpacity(iconColor.opacity * iconOpacity);
+      iconColor = iconColor.withValues(alpha: iconColor.a * iconOpacity);
     }
 
     Widget iconWidget = RichText(
@@ -479,12 +593,17 @@ class _Icon extends StatelessWidget {
       switch (textDirection) {
         case TextDirection.rtl:
           iconWidget = Transform(
-            transform: Matrix4.identity()..scale(-1.0, 1.0, 1.0),
+            transform: Matrix4.identity()
+              ..scaleByDouble(
+                -1, // Flip X axis (horizontal flip)
+                1, // Keep Y axis (no vertical flip)
+                1, // Keep Z axis (no depth flip)
+                1, // No perspective
+              ),
             alignment: AlignmentDirectional.center,
             transformHitTests: false,
             child: iconWidget,
           );
-          break;
         case TextDirection.ltr:
           break;
       }
@@ -494,9 +613,7 @@ class _Icon extends StatelessWidget {
       child: SizedBox(
         width: iconSize,
         height: iconSize,
-        child: Center(
-          child: iconWidget,
-        ),
+        child: Center(child: iconWidget),
       ),
     );
   }

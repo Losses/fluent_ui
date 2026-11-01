@@ -1,24 +1,22 @@
 import 'dart:math';
 
+import 'package:cupertino_ui/cupertino_ui.dart' as c;
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as m;
+import 'package:material_ui/material_ui.dart' as m;
 
-class MaterialEquivalents extends StatefulWidget {
-  const MaterialEquivalents({super.key});
+class UIEquivalents extends StatefulWidget {
+  const UIEquivalents({super.key});
 
   @override
-  State<MaterialEquivalents> createState() => _MaterialEquivalentsState();
+  State<UIEquivalents> createState() => _UIEquivalentsState();
 }
 
-class _MaterialEquivalentsState extends State<MaterialEquivalents> {
+class _UIEquivalentsState extends State<UIEquivalents> {
   bool comboboxChecked = true;
   bool radioChecked = true;
   bool switchChecked = true;
 
-  final List<String> comboboxItems = [
-    'Item 1',
-    'Item 2',
-  ];
+  final List<String> comboboxItems = ['Item 1', 'Item 2'];
   String? comboboxItem;
   String dropdownItem = 'Item 1';
   final popupKey = GlobalKey<m.PopupMenuButtonState>();
@@ -35,37 +33,28 @@ class _MaterialEquivalentsState extends State<MaterialEquivalents> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    List<List<Widget>> children = [
+  Widget build(final BuildContext context) {
+    final children = <List<Widget>>[
       [
         const Text('Button'),
-        Button(
-          child: const Text('Content'),
-          onPressed: () {},
-        ),
-        m.OutlinedButton(
+        Button(child: const Text('Content'), onPressed: () {}),
+        m.OutlinedButton(child: const Text('Content'), onPressed: () {}),
+        c.CupertinoButton.tinted(
           child: const Text('Content'),
           onPressed: () {},
         ),
       ],
       [
         const Text('HyperlinkButton'),
-        HyperlinkButton(
-          child: const Text('Content'),
-          onPressed: () {},
-        ),
-        m.TextButton(
-          child: const Text('Content'),
-          onPressed: () {},
-        ),
+        HyperlinkButton(child: const Text('Content'), onPressed: () {}),
+        m.TextButton(child: const Text('Content'), onPressed: () {}),
+        c.CupertinoButton(child: const Text('Content'), onPressed: () {}),
       ],
       [
         const Text('FilledButton'),
-        FilledButton(
-          child: const Text('Content'),
-          onPressed: () {},
-        ),
-        m.ElevatedButton(
+        FilledButton(child: const Text('Content'), onPressed: () {}),
+        m.ElevatedButton(child: const Text('Content'), onPressed: () {}),
+        c.CupertinoButton.filled(
           child: const Text('Content'),
           onPressed: () {},
         ),
@@ -73,88 +62,119 @@ class _MaterialEquivalentsState extends State<MaterialEquivalents> {
       [
         const Text('IconButton'),
         IconButton(
-          icon: const Icon(FluentIcons.graph_symbol),
+          icon: const WindowsIcon(WindowsIcons.app_icon_default),
           onPressed: () {},
         ),
         m.IconButton(
-          icon: const Icon(FluentIcons.graph_symbol),
+          icon: const WindowsIcon(WindowsIcons.app_icon_default),
           onPressed: () {},
         ),
+        // c.CupertinoNavigationBarBackButton(
+        //   onPressed: () {},
+        // ),
       ],
       [
         const Text('Checkbox'),
         Checkbox(
           checked: comboboxChecked,
-          onChanged: (v) =>
+          onChanged: (final v) =>
               setState(() => comboboxChecked = v ?? comboboxChecked),
         ),
         m.Checkbox(
           value: comboboxChecked,
-          onChanged: (v) =>
+          onChanged: (final v) =>
+              setState(() => comboboxChecked = v ?? comboboxChecked),
+        ),
+        c.CupertinoCheckbox(
+          value: comboboxChecked,
+          onChanged: (final v) =>
               setState(() => comboboxChecked = v ?? comboboxChecked),
         ),
       ],
       [
         const Text('RadioButton'),
-        RadioButton(
-          checked: radioChecked,
-          onChanged: (v) => setState(() => radioChecked = v),
-        ),
-        m.Radio<bool>(
+        RadioGroup<bool>(
+          onChanged: (final v) =>
+              setState(() => radioChecked = v ?? radioChecked),
           groupValue: true,
-          value: radioChecked,
-          onChanged: (v) => setState(() => radioChecked = !radioChecked),
+          child: RadioButton(value: radioChecked),
+        ),
+        RadioGroup<bool>(
+          onChanged: (final v) => setState(() => radioChecked = !radioChecked),
+          groupValue: true,
+          child: m.Radio<bool>(value: radioChecked),
+        ),
+        RadioGroup<bool>(
+          onChanged: (final v) => setState(() => radioChecked = !radioChecked),
+          groupValue: true,
+          child: c.CupertinoRadio<bool>(value: radioChecked),
         ),
       ],
       [
         const Text('ToggleSwitch'),
         ToggleSwitch(
           checked: switchChecked,
-          onChanged: (v) => setState(() => switchChecked = v),
+          onChanged: (final v) => setState(() => switchChecked = v),
         ),
         m.Switch(
           value: switchChecked,
-          onChanged: (v) => setState(() => switchChecked = v),
+          onChanged: (final v) => setState(() => switchChecked = v),
+        ),
+        c.CupertinoSwitch(
+          value: switchChecked,
+          onChanged: (final v) => setState(() => switchChecked = v),
         ),
       ],
       [
         const Text('Slider'),
         Slider(
           value: sliderValue,
-          max: 100,
-          onChanged: (v) => setState(() => sliderValue = v),
+          onChanged: (final v) => setState(() => sliderValue = v),
         ),
         m.Slider(
           value: sliderValue,
           max: 100,
-          onChanged: (v) => setState(() => sliderValue = v),
+          onChanged: (final v) => setState(() => sliderValue = v),
+        ),
+        c.CupertinoSlider(
+          value: sliderValue,
+          max: 100,
+          onChanged: (final v) => setState(() => sliderValue = v),
         ),
       ],
       [
         const Text('ProgressRing'),
         const RepaintBoundary(child: ProgressRing()),
         const RepaintBoundary(child: m.CircularProgressIndicator()),
+        const RepaintBoundary(child: c.CupertinoActivityIndicator()),
       ],
       [
         const Text('ProgressBar'),
         const RepaintBoundary(child: ProgressBar()),
         const RepaintBoundary(child: m.LinearProgressIndicator()),
+        const RepaintBoundary(child: c.CupertinoActivityIndicator()),
       ],
       [
         const Text('ComboBox'),
         ComboBox<String>(
           items: comboboxItems
-              .map((e) => ComboBoxItem(value: e, child: Text(e)))
+              .map((final e) => ComboBoxItem(value: e, child: Text(e)))
               .toList(),
           value: comboboxItem,
-          onChanged: (value) => setState(() => comboboxItem = value),
+          onChanged: (final value) => setState(() => comboboxItem = value),
         ),
         m.DropdownButton<String>(
           items: comboboxItems
-              .map((e) => m.DropdownMenuItem(value: e, child: Text(e)))
+              .map((final e) => m.DropdownMenuItem(value: e, child: Text(e)))
               .toList(),
           value: comboboxItem,
-          onChanged: (value) => setState(() => comboboxItem = value),
+          onChanged: (final value) => setState(() => comboboxItem = value),
+        ),
+        c.CupertinoPicker(
+          itemExtent: 32,
+          onSelectedItemChanged: (final value) =>
+              setState(() => comboboxItem = comboboxItems[value]),
+          children: comboboxItems.map(c.Text.new).toList(),
         ),
       ],
       [
@@ -162,7 +182,7 @@ class _MaterialEquivalentsState extends State<MaterialEquivalents> {
         DropDownButton(
           items: comboboxItems
               .map(
-                (e) => MenuFlyoutItem(
+                (final e) => MenuFlyoutItem(
                   text: Text(e),
                   onPressed: () => setState(() => dropdownItem = e),
                 ),
@@ -172,17 +192,12 @@ class _MaterialEquivalentsState extends State<MaterialEquivalents> {
         ),
         m.PopupMenuButton<String>(
           key: popupKey,
-          itemBuilder: (context) {
+          itemBuilder: (final context) {
             return comboboxItems
-                .map(
-                  (e) => m.PopupMenuItem(
-                    value: e,
-                    child: Text(e),
-                  ),
-                )
+                .map((final e) => m.PopupMenuItem(value: e, child: Text(e)))
                 .toList();
           },
-          onSelected: (e) => setState(() => dropdownItem = e),
+          onSelected: (final e) => setState(() => dropdownItem = e),
           initialValue: dropdownItem,
           position: m.PopupMenuPosition.under,
           child: m.TextButton(
@@ -192,27 +207,46 @@ class _MaterialEquivalentsState extends State<MaterialEquivalents> {
             },
           ),
         ),
+        c.CupertinoButton(
+          child: Text(dropdownItem),
+          onPressed: () {
+            c.showCupertinoModalPopup(
+              context: context,
+              builder: (final context) => c.CupertinoActionSheet(
+                actions: comboboxItems
+                    .map(
+                      (final e) => c.CupertinoActionSheetAction(
+                        child: c.Text(e),
+                        onPressed: () => setState(() => dropdownItem = e),
+                      ),
+                    )
+                    .toList(),
+              ),
+            );
+          },
+        ),
       ],
       [
         const Text('TextBox'),
         TextBox(controller: fieldController),
         m.TextField(controller: fieldController),
+        c.CupertinoTextField(
+          controller: fieldController,
+          style: const c.TextStyle(color: Colors.white),
+        ),
       ],
       [
         const Text('TimePicker'),
         TimePicker(
           selected: time,
-          onChanged: (value) => setState(() => time),
+          onChanged: (final value) => setState(() => time),
         ),
         m.TextButton(
           child: const Text('Show Picker'),
           onPressed: () async {
             final newTime = await m.showTimePicker(
               context: context,
-              initialTime: m.TimeOfDay(
-                hour: time.hour,
-                minute: time.minute,
-              ),
+              initialTime: m.TimeOfDay(hour: time.hour, minute: time.minute),
             );
             if (newTime != null) {
               time = DateTime(
@@ -226,12 +260,46 @@ class _MaterialEquivalentsState extends State<MaterialEquivalents> {
             }
           },
         ),
+        c.CupertinoButton(
+          child: const Text('Show Picker'),
+          onPressed: () async {
+            c.showCupertinoModalPopup(
+              context: context,
+              builder: (final context) {
+                return Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    height: 216,
+                    padding: const EdgeInsetsDirectional.only(top: 6),
+                    margin: EdgeInsetsDirectional.only(
+                      bottom: MediaQuery.viewInsetsOf(context).bottom,
+                    ),
+                    color: c.CupertinoColors.systemBackground.resolveFrom(
+                      context,
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: c.CupertinoDatePicker(
+                        initialDateTime: time,
+                        mode: c.CupertinoDatePickerMode.time,
+                        use24hFormat: true,
+                        onDateTimeChanged: (final newDate) {
+                          setState(() => time = newDate);
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ],
       [
         const Text('DatePicker'),
         DatePicker(
           selected: time,
-          onChanged: (value) => setState(() => time),
+          onChanged: (final value) => setState(() => time),
         ),
         m.TextButton(
           child: const Text('Show Picker'),
@@ -247,16 +315,56 @@ class _MaterialEquivalentsState extends State<MaterialEquivalents> {
             }
           },
         ),
+        c.CupertinoButton(
+          child: const Text('Show Picker'),
+          onPressed: () async {
+            c.showCupertinoModalPopup(
+              context: context,
+              builder: (final context) {
+                return Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    height: 216,
+                    padding: const EdgeInsetsDirectional.only(top: 6),
+                    margin: EdgeInsetsDirectional.only(
+                      bottom: MediaQuery.viewInsetsOf(context).bottom,
+                    ),
+                    color: c.CupertinoColors.systemBackground.resolveFrom(
+                      context,
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: c.CupertinoDatePicker(
+                        initialDateTime: time,
+                        mode: c.CupertinoDatePickerMode.date,
+                        use24hFormat: true,
+                        showDayOfWeek: true,
+                        onDateTimeChanged: (final newDate) {
+                          setState(() => time = newDate);
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ],
       [
         const Text('ListTile'),
         ListTile(
-          leading: const Icon(FluentIcons.graph_symbol),
+          leading: const WindowsIcon(WindowsIcons.app_icon_default),
           title: const Text('Content'),
           onPressed: () {},
         ),
         m.ListTile(
-          leading: const Icon(FluentIcons.graph_symbol),
+          leading: const WindowsIcon(WindowsIcons.app_icon_default),
+          title: const Text('Content'),
+          onTap: () {},
+        ),
+        c.CupertinoListTile(
+          leading: const WindowsIcon(WindowsIcons.app_icon_default),
           title: const Text('Content'),
           onTap: () {},
         ),
@@ -264,7 +372,7 @@ class _MaterialEquivalentsState extends State<MaterialEquivalents> {
       [
         const Text('Tooltip'),
         const Tooltip(
-          message: 'A fluent-styled tooltip',
+          message: 'A windows-styled tooltip',
           child: Text('Hover'),
         ),
         const m.Tooltip(
@@ -274,29 +382,38 @@ class _MaterialEquivalentsState extends State<MaterialEquivalents> {
       ],
     ];
 
-    Widget buildColumn(int index) {
-      return Column(
-        children: children
-            .map(
-              (children) => Container(
-                constraints: const BoxConstraints(minHeight: 50.0),
-                alignment: AlignmentDirectional.center,
-                child: children[index],
-              ),
-            )
-            .toList(),
+    Widget buildColumn(final int index) {
+      return FocusTraversalGroup(
+        child: Column(
+          children: children
+              .map(
+                (final children) => Container(
+                  constraints: const BoxConstraints(minHeight: 50),
+                  alignment: AlignmentDirectional.center,
+                  child: children.firstWhere(
+                    (final e) => children.indexOf(e) == index,
+                    orElse: () => const SizedBox(),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
       );
     }
 
     return m.Material(
       type: m.MaterialType.transparency,
-      child: Row(children: [
-        Expanded(child: buildColumn(0)),
-        const m.VerticalDivider(),
-        Expanded(child: buildColumn(1)),
-        const m.VerticalDivider(),
-        Expanded(child: buildColumn(2)),
-      ]),
+      child: Row(
+        children: [
+          Expanded(child: buildColumn(0)),
+          const m.VerticalDivider(),
+          Expanded(child: buildColumn(1)),
+          const m.VerticalDivider(),
+          Expanded(child: buildColumn(2)),
+          const m.VerticalDivider(),
+          Expanded(child: buildColumn(3)),
+        ],
+      ),
     );
   }
 }

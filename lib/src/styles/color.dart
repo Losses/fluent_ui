@@ -1,14 +1,46 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/foundation.dart';
 
-/// A set of predefined colors used by Fluent UI widgets.
+/// The Fluent Design color palette.
+///
+/// [Colors] provides a set of predefined colors matching the Windows system
+/// palette. These colors are designed to work well together and with Windows
+/// UI elements.
 ///
 /// ![Colors used in fluent_ui widgets](https://learn.microsoft.com/en-us/windows/apps/design/style/images/color/windows-controls.svg)
 ///
+/// {@tool snippet}
+/// Using standard colors:
+///
+/// ```dart
+/// Container(
+///   color: Colors.blue,
+///   child: Text('Blue background'),
+/// )
+/// ```
+/// {@end-tool}
+///
+/// {@tool snippet}
+/// Using accent color shades:
+///
+/// ```dart
+/// // Access specific shades of accent colors
+/// final lightBlue = Colors.blue.light;
+/// final darkBlue = Colors.blue.dark;
+/// ```
+/// {@end-tool}
+///
+/// ## Shaded colors
+///
+/// Some colors like [grey] have numbered shades (e.g., `Colors.grey[120]`).
+/// Accent colors like [blue], [red], [green] have named shades (e.g.,
+/// `Colors.blue.light`, `Colors.blue.darker`).
+///
 /// See also:
 ///
-///   * <https://learn.microsoft.com/en-us/windows/apps/design/style/color>
-///   * [Colors], which defines all the colors provided by this library.
-///   * [AccentColor], which defines a color that can have multiple shades.
+///  * [AccentColor], for colors with light/dark shade variants
+///  * [ShadedColor], for colors with numbered shade variants
+///  * <https://learn.microsoft.com/en-us/windows/apps/design/style/color>
 class Colors {
   /// The transparent color. This should not be used in animations
   /// because it'll cause a weird effect.
@@ -77,6 +109,7 @@ class Colors {
   /// A opaque white color.
   static const Color white = Color(0xFFFFFFFF);
 
+  /// The yellow accent color.
   static final AccentColor yellow = AccentColor.swatch(const <String, Color>{
     'darkest': Color(0xfff9a825),
     'darker': Color(0xfffbc02d),
@@ -87,6 +120,7 @@ class Colors {
     'lightest': Color(0xfffff59d),
   });
 
+  /// The orange accent color.
   static final AccentColor orange = AccentColor.swatch(const <String, Color>{
     'darkest': Color(0xff993d07),
     'darker': Color(0xffac4508),
@@ -97,6 +131,7 @@ class Colors {
     'lightest': Color(0xfffa9e68),
   });
 
+  /// The red accent color.
   static final AccentColor red = AccentColor.swatch(const <String, Color>{
     'darkest': Color(0xff8f0a15),
     'darker': Color(0xffa20b18),
@@ -107,6 +142,7 @@ class Colors {
     'lightest': Color(0xfff06b76),
   });
 
+  /// The magenta accent color.
   static final AccentColor magenta = AccentColor.swatch(const <String, Color>{
     'darkest': Color(0xff6f0061),
     'darker': Color(0xff7e006e),
@@ -117,6 +153,7 @@ class Colors {
     'lightest': Color(0xffd060c2),
   });
 
+  /// The purple accent color.
   static final AccentColor purple = AccentColor.swatch(const <String, Color>{
     'darkest': Color(0xff472f68),
     'darker': Color(0xff513576),
@@ -127,6 +164,7 @@ class Colors {
     'lightest': Color(0xffa890c9),
   });
 
+  /// The blue accent color.
   static final AccentColor blue = AccentColor.swatch(const <String, Color>{
     'darkest': Color(0xff004a83),
     'darker': Color(0xff005494),
@@ -137,6 +175,7 @@ class Colors {
     'lightest': Color(0xff60abe4),
   });
 
+  /// The teal accent color.
   static final AccentColor teal = AccentColor.swatch(const <String, Color>{
     'darkest': Color(0xff006e5b),
     'darker': Color(0xff007c67),
@@ -147,6 +186,7 @@ class Colors {
     'lightest': Color(0xff60cfbc),
   });
 
+  /// The green accent color.
   static final AccentColor green = AccentColor.swatch(const <String, Color>{
     'darkest': Color(0xff094c09),
     'darker': Color(0xff0c5d0c),
@@ -157,17 +197,28 @@ class Colors {
     'lightest': Color(0xff6aad6a),
   });
 
+  /// The primary color for warning.
   static const Color warningPrimaryColor = Color(0xFFd83b01);
+
+  /// The secondary color for warning.
   static final warningSecondaryColor = AccentColor.swatch(const <String, Color>{
     'dark': Color(0xFF433519),
     'normal': Color(0xFFfff4ce),
   });
+
+  /// The primary color for error.
   static const Color errorPrimaryColor = Color(0xFFa80000);
+
+  /// The secondary color for error.
   static final errorSecondaryColor = AccentColor.swatch(const <String, Color>{
     'dark': Color(0xFF442726),
     'normal': Color(0xFFfde7e9),
   });
+
+  /// The primary color for success.
   static const Color successPrimaryColor = Color(0xFF107c10);
+
+  /// The secondary color for success.
   static final successSecondaryColor = AccentColor.swatch(const <String, Color>{
     'dark': Color(0xFF393d1b),
     'normal': Color(0xFFdff6dd),
@@ -186,12 +237,24 @@ class Colors {
   ];
 }
 
+/// A [ColorSwatch] with numbered shade variants.
+///
+/// Access shades using the index operator: `Colors.grey[120]`.
+///
+/// See also:
+///
+///  * [AccentColor], for colors with named shade variants
+///  * [Colors.grey], which uses this class
 class ShadedColor extends ColorSwatch<int> {
+  /// Creates a shaded color with the given primary value and swatch.
   const ShadedColor(super.primary, super.swatch);
 
+  /// Returns the shade at the given [key].
+  ///
+  /// Unlike the base class, this returns a non-null [Color].
   @override
-  Color operator [](int index) {
-    return super[index]!;
+  Color operator [](int key) {
+    return super[key]!;
   }
 }
 
@@ -221,25 +284,25 @@ class AccentColor extends ColorSwatch<String> {
 
   /// Creates a new accent color.
   AccentColor(this.primary, this.swatch)
-      : super(swatch[primary]!.value, swatch);
+    : super(swatch[primary]!.colorValue, swatch);
 
   /// Creates a new accent color based on a swatch
   AccentColor.swatch(this.swatch)
-      : primary = 'normal',
-        super(swatch['normal']!.value, swatch);
+    : primary = 'normal',
+      super(swatch['normal']!.colorValue, swatch);
 
   /// The darkest shade of the color.
-  Color get darkest => swatch['darkest'] ?? darker.withOpacity(0.7);
+  Color get darkest => swatch['darkest'] ?? darker.withValues(alpha: 0.7);
 
   /// The darker shade of the color.
   ///
   /// Usually used for shadows
-  Color get darker => swatch['darker'] ?? dark.withOpacity(0.8);
+  Color get darker => swatch['darker'] ?? dark.withValues(alpha: 0.8);
 
   /// The dark shade of the color.
   ///
   /// Usually used for the mouse press effect;
-  Color get dark => swatch['dark'] ?? normal.withOpacity(0.9);
+  Color get dark => swatch['dark'] ?? normal.withValues(alpha: 0.9);
 
   /// The default shade of the color.
   Color get normal => swatch['normal']!;
@@ -247,15 +310,15 @@ class AccentColor extends ColorSwatch<String> {
   /// The light shade of the color.
   ///
   /// Usually used for the mouse hover effect
-  Color get light => swatch['light'] ?? normal.withOpacity(0.9);
+  Color get light => swatch['light'] ?? normal.withValues(alpha: 0.9);
 
   /// The lighter shade of the color.
   ///
   /// Usually used for shadows
-  Color get lighter => swatch['lighter'] ?? light.withOpacity(0.8);
+  Color get lighter => swatch['lighter'] ?? light.withValues(alpha: 0.8);
 
   /// The lighest shade of the color
-  Color get lightest => swatch['lightest'] ?? lighter.withOpacity(0.7);
+  Color get lightest => swatch['lightest'] ?? lighter.withValues(alpha: 0.7);
 
   /// Lerp between two accent colors.
   static AccentColor lerp(AccentColor a, AccentColor b, double t) {
@@ -267,13 +330,13 @@ class AccentColor extends ColorSwatch<String> {
     final lightest = Color.lerp(a.lightest, b.lightest, t);
 
     return AccentColor.swatch({
-      if (darkest != null) 'darkest': darkest,
-      if (darker != null) 'darker': darker,
-      if (dark != null) 'dark': dark,
+      'darkest': ?darkest,
+      'darker': ?darker,
+      'dark': ?dark,
       'normal': Color.lerp(a.normal, b.normal, t)!,
-      if (light != null) 'light': light,
-      if (lighter != null) 'lighter': lighter,
-      if (lightest != null) 'lightest': lightest,
+      'light': ?light,
+      'lighter': ?lighter,
+      'lightest': ?lightest,
     });
   }
 
@@ -282,11 +345,10 @@ class AccentColor extends ColorSwatch<String> {
   /// See also:
   ///  * <https://github.com/microsoft/microsoft-ui-xaml/blob/main/dev/CommonStyles/Common_themeresources_any.xaml#L163-L166>
   Color defaultBrushFor(Brightness brightness) {
-    if (brightness.isDark) {
-      return lighter;
-    } else {
-      return dark;
-    }
+    return switch (brightness) {
+      Brightness.light => dark,
+      Brightness.dark => lighter,
+    };
   }
 
   /// Get the secondary brush for this accent color based on the brightness.
@@ -294,7 +356,7 @@ class AccentColor extends ColorSwatch<String> {
   /// See also:
   ///  * <https://github.com/microsoft/microsoft-ui-xaml/blob/main/dev/CommonStyles/Common_themeresources_any.xaml#L163-L166>
   Color secondaryBrushFor(Brightness brightness) {
-    return defaultBrushFor(brightness).withOpacity(0.9);
+    return defaultBrushFor(brightness).withValues(alpha: 0.9);
   }
 
   /// Get the tertiary brush for this accent color based on the brightness.
@@ -302,8 +364,20 @@ class AccentColor extends ColorSwatch<String> {
   /// See also:
   ///  * <https://github.com/microsoft/microsoft-ui-xaml/blob/main/dev/CommonStyles/Common_themeresources_any.xaml#L163-L166>
   Color tertiaryBrushFor(Brightness brightness) {
-    return defaultBrushFor(brightness).withOpacity(0.8);
+    return defaultBrushFor(brightness).withValues(alpha: 0.8);
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is AccentColor &&
+        other.primary == primary &&
+        mapEquals(other.swatch, swatch);
+  }
+
+  @override
+  int get hashCode => primary.hashCode ^ swatch.hashCode;
 }
 
 /// Extension methods to help dealing with colors.
@@ -313,10 +387,10 @@ extension ColorExtension on Color {
   /// or darker, and with [Colors.white] if light or lighter.
   ///
   /// See also:
-  ///   - [Color.lerp]
-  ///   - [lerpWith]
-  ///   - [Colors.black]
-  ///   - [Color.white]
+  ///   * [Color.lerp], a method to lerp two colors.
+  ///   * [lerpWith], a helper method to lerp two colors with a factor.
+  ///   * [Colors.black], the darkest color.
+  ///   * [Color.white], the lightest color.
   AccentColor toAccentColor({
     double darkestFactor = 0.38,
     double darkerFactor = 0.30,
@@ -356,14 +430,22 @@ extension ColorExtension on Color {
   /// [t] must be in range of 0.0 to 1.0
   ///
   /// See also:
-  ///   - [Color.lerp]
+  ///   * [Color.lerp]
   Color lerpWith(Color color, double t) {
     return Color.lerp(this, color, t)!;
   }
-}
 
-class ColorConst extends Color {
-  const ColorConst.withOpacity(int value, double opacity)
-      : super(((((opacity * 0xff ~/ 1) & 0xff) << 24) | (0x00ffffff & value)) &
-            0xFFFFFFFF);
+  /// Get the color value as an integer.
+  @protected
+  int get colorValue {
+    return _floatToInt8(a) << 24 |
+        _floatToInt8(r) << 16 |
+        _floatToInt8(g) << 8 |
+        _floatToInt8(b) << 0;
+  }
+
+  @protected
+  static int _floatToInt8(double x) {
+    return (x * 255.0).round() & 0xff;
+  }
 }

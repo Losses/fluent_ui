@@ -66,7 +66,38 @@ bool debugCheckHasFluentLocalizations(BuildContext context) {
           'FluentLocalizations delegate.',
         ),
         ...context.describeMissingAncestor(
-            expectedAncestorType: FluentLocalizations)
+          expectedAncestorType: FluentLocalizations,
+        ),
+      ]);
+    }
+    return true;
+  }());
+  return true;
+}
+
+/// Asserts that the given context has a [Flyout] ancestor.
+///
+/// To call this function, use the following pattern, typically in the
+/// relevant Widget's build method:
+///
+/// ```dart
+/// assert(debugCheckHasFlyout(context));
+/// ```
+///
+/// Does nothing if asserts are disabled. Always returns true.
+bool debugCheckHasFlyout(BuildContext context) {
+  assert(() {
+    if (Flyout.maybeOf(context) == null) {
+      throw FlutterError.fromParts(<DiagnosticsNode>[
+        ErrorSummary('No Flyout found.'),
+        ErrorDescription(
+          '${context.widget.runtimeType} widgets require a Flyout '
+          'to be provided by a Flyout widget ancestor.',
+        ),
+        ErrorHint(
+          'To introduce a Flyout, use the showFlyout method or related methods.',
+        ),
+        ...context.describeMissingAncestor(expectedAncestorType: Flyout),
       ]);
     }
     return true;
@@ -83,6 +114,9 @@ bool is10footScreen(BuildContext context) {
   return width >= 11520;
 }
 
+/// A horizontal box that is positioned near a target.
+///
+/// This was adapted from [positionDependentBox].
 Offset horizontalPositionDependentBox({
   required Size size,
   required Size childSize,
@@ -95,20 +129,25 @@ Offset horizontalPositionDependentBox({
   final fitsLeft =
       target.dx + horizontalOffset + childSize.width <= size.width - margin;
   final fitsRight = target.dx - horizontalOffset - childSize.width >= margin;
-  final tooltipLeft =
-      preferLeft ? fitsLeft || !fitsRight : !(fitsRight || !fitsLeft);
-  double x;
+  final tooltipLeft = preferLeft
+      ? fitsLeft || !fitsRight
+      : !(fitsRight || !fitsLeft);
+  final double x;
   if (tooltipLeft) {
     x = math.min(target.dx + horizontalOffset, size.width - margin);
   } else {
     x = math.max(target.dx - horizontalOffset - childSize.width, margin);
   }
   // Vertical DIRECTION
-  double y;
+  final double y;
   if (size.height - margin * 2.0 < childSize.height) {
     y = (size.height - childSize.height) / 2.0;
   } else {
-    final normalizedTargetY = target.dy.clamp(margin, size.height - margin);
+    final normalizedTargetY = clampDouble(
+      target.dy,
+      margin,
+      size.height - margin,
+    );
     final edge = margin + childSize.height / 2.0;
     if (normalizedTargetY < edge) {
       y = margin;
@@ -121,8 +160,9 @@ Offset horizontalPositionDependentBox({
   return Offset(x, y);
 }
 
+/// Extension methods for [Decoration] objects.
 extension DecorationExtension on Decoration {
-  /// Gets the border radius of this decoration, if reacheable
+  /// Gets the border radius of this decoration.
   BorderRadiusGeometry? getBorderRadius() {
     if (this is BoxDecoration) {
       return (this as BoxDecoration).borderRadius;
@@ -138,6 +178,7 @@ extension DecorationExtension on Decoration {
   }
 }
 
+/// Extension methods for [String] objects.
 extension StringExtension on String {
   /// Results this string with the first char uppercased
   ///
@@ -156,11 +197,38 @@ extension StringExtension on String {
   }
 }
 
+/// Extension methods for [Offset] objects.
 extension OffsetExtension on Offset {
+  /// Clamps this offset to be within the given [min] and [max] bounds.
   Offset clamp(Offset min, Offset max) {
     return Offset(
       clampDouble(dx, min.dx, max.dx),
       clampDouble(dy, min.dy, max.dy),
     );
   }
+}
+
+/// Linearly interpolates between two [WidgetStateProperty] objects.
+///
+/// The [lerpFunction] is used to interpolate between the resolved values
+/// for each state.
+WidgetStateProperty<T?>? lerpWidgetStateProperty<T>(
+  WidgetStateProperty<T?>? a,
+  WidgetStateProperty<T?>? b,
+  double t,
+  T? Function(T?, T?, double) lerpFunction,
+) {
+  if (identical(a, b)) {
+    return a;
+  }
+  if (a == null && b == null) {
+    return null;
+  }
+  if (a == null) {
+    return b;
+  }
+  if (b == null) {
+    return a;
+  }
+  return WidgetStateProperty.lerp<T?>(a, b, t, lerpFunction);
 }

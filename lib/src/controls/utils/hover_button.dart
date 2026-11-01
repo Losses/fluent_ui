@@ -1,25 +1,31 @@
 import 'package:fluent_ui/fluent_ui.dart';
-
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
-typedef WidgetStateWidgetBuilder = Widget Function(
-  BuildContext,
-  Set<WidgetState> state,
-);
+/// A builder function that creates a widget based on the current [WidgetState].
+typedef WidgetStateWidgetBuilder =
+    Widget Function(BuildContext, Set<WidgetState> state);
 
+/// An inherited widget that provides access to [HoverButton] interaction states.
 class HoverButtonInherited extends InheritedWidget {
+  /// Creates a hover button inherited widget.
   const HoverButtonInherited({
-    super.key,
     required super.child,
     required this.states,
+    super.key,
   });
 
+  /// The current interaction states of the button.
   final Set<WidgetState> states;
 
+  /// Returns the closest [HoverButtonInherited] ancestor.
+  ///
+  /// Throws if no ancestor is found.
   static HoverButtonInherited of(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<HoverButtonInherited>()!;
   }
 
+  /// Returns the closest [HoverButtonInherited] ancestor, if any.
   static HoverButtonInherited? maybeOf(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<HoverButtonInherited>();
   }
@@ -34,8 +40,8 @@ class HoverButtonInherited extends InheritedWidget {
 class HoverButton extends StatefulWidget {
   /// Creates a hover button.
   const HoverButton({
-    super.key,
     required this.builder,
+    super.key,
     this.cursor,
     this.onPressed,
     this.onLongPress,
@@ -52,6 +58,8 @@ class HoverButton extends StatefulWidget {
     this.onHorizontalDragEnd,
     this.gestures = const {},
     this.onFocusTap,
+    this.onPointerEnter,
+    this.onPointerExit,
     this.onFocusChange,
     this.autofocus = false,
     this.actionsEnabled = true,
@@ -72,17 +80,34 @@ class HoverButton extends StatefulWidget {
   /// {@endtemplate}
   final MouseCursor? cursor;
 
-  final VoidCallback? onLongPress;
-  final VoidCallback? onLongPressStart;
-  final VoidCallback? onLongPressEnd;
+  /// Called when a long press gesture is detected.
+  final GestureLongPressCallback? onLongPress;
 
+  /// Called when a long press gesture starts.
+  final GestureLongPressStartCallback? onLongPressStart;
+
+  /// Called when a long press gesture ends.
+  final GestureLongPressEndCallback? onLongPressEnd;
+
+  /// Called when the button is pressed.
   final VoidCallback? onPressed;
-  final VoidCallback? onTapUp;
-  final VoidCallback? onTapDown;
-  final VoidCallback? onTapCancel;
 
+  /// Called when the button tap is released.
+  final GestureTapUpCallback? onTapUp;
+
+  /// Called when the button tap begins.
+  final GestureTapDownCallback? onTapDown;
+
+  /// Called when the button tap is cancelled.
+  final GestureTapCancelCallback? onTapCancel;
+
+  /// Called when a horizontal drag gesture starts.
   final GestureDragStartCallback? onHorizontalDragStart;
+
+  /// Called during a horizontal drag gesture.
   final GestureDragUpdateCallback? onHorizontalDragUpdate;
+
+  /// Called when a horizontal drag gesture ends.
   final GestureDragEndCallback? onHorizontalDragEnd;
 
   /// The gestures that this widget will attempt to recognize.
@@ -92,17 +117,26 @@ class HoverButton extends StatefulWidget {
   ///
   /// This value can be late-bound at layout time using
   /// [RawGestureDetectorState.replaceGestureRecognizers].
+  ///
+  /// See also:
+  ///
+  ///   * [RawGestureDetector.gestures], which this value is passed to.
   final Map<Type, GestureRecognizerFactory> gestures;
 
   /// When the button is focused and is actioned, with either the enter or space
-  /// keys
+  /// keys.
   ///
   /// [focusEnabled] must not be `false` for this to work
   final VoidCallback? onFocusTap;
 
-  final WidgetStateWidgetBuilder builder;
+  /// Called when the pointer enters the button area.
+  final PointerEnterEventListener? onPointerEnter;
 
-  /// Whether the button and its descendants form a single semantics node.
+  /// Called when the pointer exits the button area.
+  final PointerExitEventListener? onPointerExit;
+
+  /// The builder for the button content based on the current states.
+  final WidgetStateWidgetBuilder builder;
   final bool mergeSemantics;
 
   /// {@macro flutter.widgets.Focus.focusNode}
@@ -128,6 +162,7 @@ class HoverButton extends StatefulWidget {
   /// {@macro flutter.widgets.Focus.autofocus}
   final bool autofocus;
 
+  /// Called when the button focus changes.
   final ValueChanged<bool>? onFocusChange;
 
   /// Whether actions are enabled
@@ -170,10 +205,12 @@ class HoverButton extends StatefulWidget {
   @override
   State<HoverButton> createState() => _HoverButtonState();
 
+  /// Returns the closest [HoverButtonInherited] ancestor.
   static HoverButtonInherited of(BuildContext context) {
     return HoverButtonInherited.of(context);
   }
 
+  /// Returns the closest [HoverButtonInherited] ancestor, if any.
   static HoverButtonInherited? maybeOf(BuildContext context) {
     return HoverButtonInherited.maybeOf(context);
   }
@@ -189,21 +226,13 @@ class _HoverButtonState extends State<HoverButton> {
   void initState() {
     super.initState();
     node = widget.focusNode ?? _createFocusNode();
-    Future<void> handleActionTap() async {
-      if (!enabled) return;
-      setState(() => _pressing = true);
-      widget.onFocusTap?.call();
-      widget.onPressed?.call();
-      await Future.delayed(const Duration(milliseconds: 100));
-      if (mounted) setState(() => _pressing = false);
-    }
 
     defaultActions = {
       ActivateIntent: CallbackAction<ActivateIntent>(
-        onInvoke: (ActivateIntent intent) => handleActionTap(),
+        onInvoke: (intent) => handleActionTap(),
       ),
       ButtonActivateIntent: CallbackAction<ButtonActivateIntent>(
-        onInvoke: (ButtonActivateIntent intent) => handleActionTap(),
+        onInvoke: (intent) => handleActionTap(),
       ),
     };
 
@@ -211,6 +240,16 @@ class _HoverButtonState extends State<HoverButton> {
       ...defaultActions,
       if (widget.customActions != null) ...widget.customActions!,
     };
+  }
+
+  Future<void> handleActionTap() async {
+    if (!enabled) return;
+    final theme = FluentTheme.of(context);
+    setState(() => _pressing = true);
+    widget.onFocusTap?.call();
+    widget.onPressed?.call();
+    await Future<void>.delayed(theme.fastAnimationDuration);
+    if (mounted) setState(() => _pressing = false);
   }
 
   @override
@@ -267,18 +306,19 @@ class _HoverButtonState extends State<HoverButton> {
 
   @override
   Widget build(BuildContext context) {
+    assert(debugCheckHasFluentTheme(context));
     Widget w = GestureDetector(
       behavior: widget.hitTestBehavior,
       onTap: enabled ? widget.onPressed : null,
-      onTapDown: (_) {
+      onTapDown: (d) {
         if (!enabled) return;
         if (mounted) setState(() => _pressing = true);
-        widget.onTapDown?.call();
+        widget.onTapDown?.call(d);
       },
-      onTapUp: (_) async {
+      onTapUp: (d) async {
         if (!enabled) return;
-        widget.onTapUp?.call();
-        await Future.delayed(const Duration(milliseconds: 100));
+        widget.onTapUp?.call(d);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         if (mounted) setState(() => _pressing = false);
       },
       onTapCancel: () {
@@ -288,16 +328,16 @@ class _HoverButtonState extends State<HoverButton> {
       },
       onLongPress: enabled ? widget.onLongPress : null,
       onLongPressStart: widget.onLongPressStart != null
-          ? (_) {
+          ? (d) {
               if (!enabled) return;
-              widget.onLongPressStart?.call();
+              widget.onLongPressStart?.call(d);
               if (mounted) setState(() => _pressing = true);
             }
           : null,
       onLongPressEnd: widget.onLongPressEnd != null
-          ? (_) {
+          ? (d) {
               if (!enabled) return;
-              widget.onLongPressEnd?.call();
+              widget.onLongPressEnd?.call(d);
               if (mounted) setState(() => _pressing = false);
             }
           : null,
@@ -322,16 +362,22 @@ class _HoverButtonState extends State<HoverButton> {
         onShowHoverHighlight: (v) {
           if (mounted) setState(() => _hovering = v);
         },
-        child: w,
+        child: MouseRegion(
+          onEnter: widget.onPointerEnter,
+          onExit: widget.onPointerExit,
+          child: w,
+        ),
       );
     } else {
       w = MouseRegion(
         cursor: widget.cursor ?? MouseCursor.defer,
         onEnter: (e) {
           if (mounted) setState(() => _hovering = true);
+          widget.onPointerEnter?.call(e);
         },
         onExit: (e) {
           if (mounted) setState(() => _hovering = false);
+          widget.onPointerExit?.call(e);
         },
         child: w,
       );
@@ -346,22 +392,11 @@ class _HoverButtonState extends State<HoverButton> {
     if (widget.mergeSemantics) w = MergeSemantics(child: w);
     if (widget.margin != null) w = Padding(padding: widget.margin!, child: w);
 
-    w = HoverButtonInherited(
-      states: states,
-      child: w,
-    );
-    return w;
+    return HoverButtonInherited(states: states, child: w);
   }
 }
 
-@Deprecated('Use WidgetState instead. Will be removed in the next version')
-typedef ButtonStates = WidgetState;
-
-@Deprecated(
-  'Use WidgetStateProperty instead. Will be removed in the next version',
-)
-typedef ButtonState<T> = WidgetStateProperty<T>;
-
+/// Extension methods for [Set<WidgetState>] to easily check interaction states.
 extension WidgetStateExtension on Set<WidgetState> {
   /// Checks whether the widget is focused.
   bool get isFocused => contains(WidgetState.focused);
@@ -371,13 +406,9 @@ extension WidgetStateExtension on Set<WidgetState> {
 
   /// Checks whether the widget is pressed.
   bool get isPressed => contains(WidgetState.pressed);
-  @Deprecated('Use isPressed instead. Will be removed in the next version')
-  bool get isPressing => isPressed;
 
   /// Checks whether the widget is hovered.
   bool get isHovered => contains(WidgetState.hovered);
-  @Deprecated('Use isHovered instead. Will be removed in the next version')
-  bool get isHovering => isHovered;
 
   /// Checks whether the widget is in its default state.
   bool get isNone => isEmpty;

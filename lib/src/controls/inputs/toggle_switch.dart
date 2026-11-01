@@ -2,38 +2,87 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-typedef ToggleSwitchKnobBuilder = Widget Function(
-  BuildContext context,
-  Set<WidgetState> states,
-);
+/// A builder function that creates a custom knob widget for [ToggleSwitch].
+///
+/// The [states] parameter contains the current interaction states of the switch.
+typedef ToggleSwitchKnobBuilder =
+    Widget Function(BuildContext context, Set<WidgetState> states);
 
-/// The toggle switch represents a physical switch that allows users to turn
-/// things on or off, like a light switch. Use toggle switch controls to present
-/// users with two mutually exclusive options (such as on/off), where choosing
-/// an option provides immediate results.
+/// A toggle switch represents a physical switch that allows users to turn
+/// things on or off, like a light switch.
 ///
-/// Use a toggle switch for binary operations that take effect right after the
-/// user flips the toggle switch
-///
-/// ![ToggleSwitch Preview](https://docs.microsoft.com/en-us/windows/uwp/design/controls-and-patterns/images/toggleswitches01.png)
-///
+/// Use toggle switch controls to present users with two mutually exclusive
+/// options (such as on/off), where choosing an option provides immediate results.
 /// Think of the toggle switch as a physical power switch for a device: you flip
 /// it on or off when you want to enable or disable the action performed by the device.
 ///
+/// ![ToggleSwitch Preview](https://learn.microsoft.com/en-us/windows/apps/design/controls/images/toggleswitches01.png)
+///
+/// {@tool snippet}
+/// This example shows a basic toggle switch:
+///
+/// ```dart
+/// bool isEnabled = false;
+///
+/// ToggleSwitch(
+///   checked: isEnabled,
+///   onChanged: (value) => setState(() => isEnabled = value),
+/// )
+/// ```
+/// {@end-tool}
+///
+/// {@tool snippet}
+/// This example shows a toggle switch with a label:
+///
+/// ```dart
+/// ToggleSwitch(
+///   checked: isDarkMode,
+///   content: Text('Dark mode'),
+///   onChanged: (value) => setState(() => isDarkMode = value),
+/// )
+/// ```
+/// {@end-tool}
+///
+/// {@tool snippet}
+/// This example shows a toggle switch with the label before the switch:
+///
+/// ```dart
+/// ToggleSwitch(
+///   checked: isWifiEnabled,
+///   content: Text('Wi-Fi'),
+///   leadingContent: true,
+///   onChanged: (value) => setState(() => isWifiEnabled = value),
+/// )
+/// ```
+/// {@end-tool}
+///
+/// ## Toggle switch vs checkbox
+///
+/// Both toggle switches and checkboxes let users select between two states.
+/// Use the following guidelines to choose between them:
+///
+/// Use a **toggle switch** when:
+/// * The setting is a binary on/off choice
+/// * The change takes effect immediately
+/// * The metaphor of a physical switch makes sense
+///
+/// Use a **checkbox** when:
+/// * Users are making a selection from a list
+/// * The change requires a separate "Submit" or "Apply" action
+/// * You need to support a third "indeterminate" state
+///
 /// See also:
 ///
-///  * [Checkbox], which let the user select multiple items from a collection of
-///    two or more items
-///  * [ToggleButton], which let the user toggle a option on or off
-///  * [RadioButton], which let the user select one item from a collection of two
-///    or more options
-///  * <https://docs.microsoft.com/en-us/windows/apps/design/controls/toggles>
+///  * [Checkbox], which lets the user select multiple items from a collection
+///  * [ToggleButton], which lets the user toggle a button on or off
+///  * [RadioButton], which lets the user select one item from multiple options
+///  * <https://learn.microsoft.com/en-us/windows/apps/design/controls/toggles>
 class ToggleSwitch extends StatefulWidget {
   /// Creates a toggle switch.
   const ToggleSwitch({
-    super.key,
     required this.checked,
     required this.onChanged,
+    super.key,
     this.style,
     this.content,
     this.leadingContent = false,
@@ -101,11 +150,17 @@ class ToggleSwitch extends StatefulWidget {
     super.debugFillProperties(properties);
     properties
       ..add(FlagProperty('checked', value: checked, ifFalse: 'unchecked'))
-      ..add(FlagProperty('leadingContent',
-          value: leadingContent, ifFalse: 'trailingContent'))
+      ..add(
+        FlagProperty(
+          'leadingContent',
+          value: leadingContent,
+          ifFalse: 'trailingContent',
+        ),
+      )
       ..add(ObjectFlagProperty('onChanged', onChanged, ifNull: 'disabled'))
       ..add(
-          FlagProperty('autofocus', value: autofocus, ifFalse: 'manual focus'))
+        FlagProperty('autofocus', value: autofocus, ifFalse: 'manual focus'),
+      )
       ..add(DiagnosticsProperty<ToggleSwitchThemeData>('style', style))
       ..add(StringProperty('semanticLabel', semanticLabel))
       ..add(ObjectFlagProperty<FocusNode>.has('focusNode', focusNode));
@@ -127,7 +182,7 @@ class _ToggleSwitchState extends State<ToggleSwitch> {
   ) {
     setState(() {
       _alignment = Alignment(
-        (localPosition.dx / sliderGestureWidth).clamp(-1, 1),
+        clampDouble(localPosition.dx / sliderGestureWidth, -1, 1),
         0,
       );
     });
@@ -173,7 +228,8 @@ class _ToggleSwitchState extends State<ToggleSwitch> {
             },
       builder: (context, states) {
         Widget child = AnimatedContainer(
-          alignment: _alignment ??
+          alignment:
+              _alignment ??
               (widget.checked
                   ? AlignmentDirectional.centerEnd
                   : AlignmentDirectional.centerStart),
@@ -185,7 +241,8 @@ class _ToggleSwitchState extends State<ToggleSwitch> {
           decoration: widget.checked
               ? style.checkedDecoration?.resolve(states)
               : style.uncheckedDecoration?.resolve(states),
-          child: widget.knob ??
+          child:
+              widget.knob ??
               widget.knobBuilder?.call(context, states) ??
               DefaultToggleSwitchKnob(
                 checked: widget.checked,
@@ -203,42 +260,40 @@ class _ToggleSwitchState extends State<ToggleSwitch> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: widget.leadingContent
-                    ? [
-                        widget.content!,
-                        const SizedBox(width: 10.0),
-                        child,
-                      ]
-                    : [
-                        child,
-                        const SizedBox(width: 10.0),
-                        widget.content!,
-                      ],
+                    ? [widget.content!, const SizedBox(width: 10), child]
+                    : [child, const SizedBox(width: 10), widget.content!],
               ),
             ),
           );
         }
         return Semantics(
           toggled: widget.checked,
-          child: FocusBorder(
-            focused: states.isFocused,
-            child: child,
-          ),
+          child: FocusBorder(focused: states.isFocused, child: child),
         );
       },
     );
   }
 }
 
+/// The default knob widget used by [ToggleSwitch].
+///
+/// This knob animates its size based on hover and press states.
 class DefaultToggleSwitchKnob extends StatelessWidget {
+  /// Creates a default toggle switch knob.
   const DefaultToggleSwitchKnob({
-    super.key,
     required this.checked,
     required this.style,
     required this.states,
+    super.key,
   });
 
+  /// Whether the toggle switch is checked.
   final bool checked;
+
+  /// The theme data for styling the knob.
   final ToggleSwitchThemeData? style;
+
+  /// The current interaction states.
   final Set<WidgetState> states;
 
   @override
@@ -248,12 +303,12 @@ class DefaultToggleSwitchKnob extends StatelessWidget {
       duration: style?.animationDuration ?? Duration.zero,
       curve: style?.animationCurve ?? Curves.linear,
       margin: states.isHovered
-          ? const EdgeInsets.all(1.0 + checkedFactor)
-          : const EdgeInsets.symmetric(
+          ? const EdgeInsetsDirectional.all(1.0 + checkedFactor)
+          : const EdgeInsetsDirectional.symmetric(
               horizontal: 2.0 + checkedFactor,
               vertical: 2.0 + checkedFactor,
             ),
-      height: 18.0,
+      height: 18,
       width:
           12.0 + (states.isHovered ? 2.0 : 0.0) + (states.isPressed ? 5.0 : 0),
       decoration: checked
@@ -263,37 +318,47 @@ class DefaultToggleSwitchKnob extends StatelessWidget {
   }
 }
 
+/// An inherited widget that defines the configuration for
+/// [ToggleSwitch]s in this widget's subtree.
+///
+/// Values specified here are used for [ToggleSwitch] properties that are not
+/// given an explicit non-null value.
 class ToggleSwitchTheme extends InheritedTheme {
-  /// Creates a button theme that controls how descendant [ToggleSwitch]es should
+  /// Creates a theme that controls how descendant [ToggleSwitch]es should
   /// look like.
   const ToggleSwitchTheme({
-    super.key,
     required super.child,
     required this.data,
+    super.key,
   });
 
+  /// The theme data for the toggle switch theme.
   final ToggleSwitchThemeData data;
 
-  /// Creates a button theme that controls how descendant [ToggleSwitch]es should
-  /// look like, and merges in the current button theme, if any.
+  /// Creates a theme that merges the nearest [ToggleSwitchTheme] with [data].
   static Widget merge({
-    Key? key,
     required ToggleSwitchThemeData data,
     required Widget child,
+    Key? key,
   }) {
-    return Builder(builder: (BuildContext context) {
-      return ToggleSwitchTheme(
-        key: key,
-        data: _getInheritedToggleSwitchThemeData(context).merge(data),
-        child: child,
-      );
-    });
+    return Builder(
+      builder: (context) {
+        return ToggleSwitchTheme(
+          key: key,
+          data: ToggleSwitchTheme.of(context).merge(data),
+          child: child,
+        );
+      },
+    );
   }
 
-  /// The data from the closest instance of this class that encloses the given
+  /// Returns the closest [ToggleSwitchThemeData] which encloses the given
   /// context.
   ///
-  /// Defaults to [FluentThemeData.toggleSwitchTheme]
+  /// Resolution order:
+  /// 1. Defaults from [ToggleSwitchThemeData.standard]
+  /// 2. Global theme from [FluentThemeData.toggleSwitchTheme]
+  /// 3. Local [ToggleSwitchTheme] ancestor
   ///
   /// Typical usage is as follows:
   ///
@@ -302,16 +367,12 @@ class ToggleSwitchTheme extends InheritedTheme {
   /// ```
   static ToggleSwitchThemeData of(BuildContext context) {
     assert(debugCheckHasFluentTheme(context));
-    return ToggleSwitchThemeData.standard(FluentTheme.of(context)).merge(
-      _getInheritedToggleSwitchThemeData(context),
-    );
-  }
-
-  static ToggleSwitchThemeData _getInheritedToggleSwitchThemeData(
-      BuildContext context) {
-    final checkboxTheme =
-        context.dependOnInheritedWidgetOfExactType<ToggleSwitchTheme>();
-    return checkboxTheme?.data ?? FluentTheme.of(context).toggleSwitchTheme;
+    final theme = FluentTheme.of(context);
+    final inheritedTheme = context
+        .dependOnInheritedWidgetOfExactType<ToggleSwitchTheme>();
+    return ToggleSwitchThemeData.standard(
+      theme,
+    ).merge(theme.toggleSwitchTheme).merge(inheritedTheme?.data);
   }
 
   @override
@@ -320,11 +381,11 @@ class ToggleSwitchTheme extends InheritedTheme {
   }
 
   @override
-  bool updateShouldNotify(ToggleSwitchTheme oldWidget) {
-    return oldWidget.data != data;
-  }
+  bool updateShouldNotify(ToggleSwitchTheme oldWidget) =>
+      data != oldWidget.data;
 }
 
+/// Theme data for [ToggleSwitch] widgets.
 @immutable
 class ToggleSwitchThemeData with Diagnosticable {
   /// The decoration of the knob when the switch is checked
@@ -367,6 +428,7 @@ class ToggleSwitchThemeData with Diagnosticable {
     this.foregroundColor,
   });
 
+  /// Creates the standard [ToggleSwitchThemeData] based on the given [theme].
   factory ToggleSwitchThemeData.standard(FluentThemeData theme) {
     final defaultKnobDecoration = BoxDecoration(
       borderRadius: BorderRadius.circular(100),
@@ -425,6 +487,9 @@ class ToggleSwitchThemeData with Diagnosticable {
     );
   }
 
+  /// Linearly interpolates between two [ToggleSwitchThemeData] objects.
+  ///
+  /// {@macro fluent_ui.lerp.t}
   static ToggleSwitchThemeData lerp(
     ToggleSwitchThemeData? a,
     ToggleSwitchThemeData? b,
@@ -434,27 +499,46 @@ class ToggleSwitchThemeData with Diagnosticable {
       margin: EdgeInsetsGeometry.lerp(a?.margin, b?.margin, t),
       padding: EdgeInsetsGeometry.lerp(a?.padding, b?.padding, t),
       animationCurve: t < 0.5 ? a?.animationCurve : b?.animationCurve,
-      animationDuration: lerpDuration(a?.animationDuration ?? Duration.zero,
-          b?.animationDuration ?? Duration.zero, t),
-      checkedKnobDecoration: WidgetStateProperty.lerp<Decoration?>(
-          a?.checkedKnobDecoration,
-          b?.checkedKnobDecoration,
-          t,
-          Decoration.lerp),
-      uncheckedKnobDecoration: WidgetStateProperty.lerp<Decoration?>(
-          a?.uncheckedKnobDecoration,
-          b?.uncheckedKnobDecoration,
-          t,
-          Decoration.lerp),
-      checkedDecoration: WidgetStateProperty.lerp<Decoration?>(
-          a?.checkedDecoration, b?.checkedDecoration, t, Decoration.lerp),
-      uncheckedDecoration: WidgetStateProperty.lerp<Decoration?>(
-          a?.uncheckedDecoration, b?.uncheckedDecoration, t, Decoration.lerp),
-      foregroundColor: WidgetStateProperty.lerp<Color?>(
-          a?.foregroundColor, b?.foregroundColor, t, Color.lerp),
+      animationDuration: lerpDuration(
+        a?.animationDuration ?? Duration.zero,
+        b?.animationDuration ?? Duration.zero,
+        t,
+      ),
+      checkedKnobDecoration: lerpWidgetStateProperty<Decoration?>(
+        a?.checkedKnobDecoration,
+        b?.checkedKnobDecoration,
+        t,
+        Decoration.lerp,
+      ),
+      uncheckedKnobDecoration: lerpWidgetStateProperty<Decoration?>(
+        a?.uncheckedKnobDecoration,
+        b?.uncheckedKnobDecoration,
+        t,
+        Decoration.lerp,
+      ),
+      checkedDecoration: lerpWidgetStateProperty<Decoration?>(
+        a?.checkedDecoration,
+        b?.checkedDecoration,
+        t,
+        Decoration.lerp,
+      ),
+      uncheckedDecoration: lerpWidgetStateProperty<Decoration?>(
+        a?.uncheckedDecoration,
+        b?.uncheckedDecoration,
+        t,
+        Decoration.lerp,
+      ),
+      foregroundColor: lerpWidgetStateProperty<Color?>(
+        a?.foregroundColor,
+        b?.foregroundColor,
+        t,
+        Color.lerp,
+      ),
     );
   }
 
+  /// Merges this [ToggleSwitchThemeData] with another, with the other taking
+  /// precedence.
   ToggleSwitchThemeData merge(ToggleSwitchThemeData? style) {
     return ToggleSwitchThemeData(
       margin: style?.margin ?? margin,
@@ -478,24 +562,33 @@ class ToggleSwitchThemeData with Diagnosticable {
       ..add(DiagnosticsProperty<EdgeInsetsGeometry?>('margin', margin))
       ..add(DiagnosticsProperty<EdgeInsetsGeometry?>('padding', padding))
       ..add(DiagnosticsProperty<Curve?>('animationCurve', animationCurve))
-      ..add(DiagnosticsProperty<Duration?>(
-          'animationDuration', animationDuration))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
-        'checkedDecoration',
-        checkedDecoration,
-      ))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
-        'uncheckedDecoration',
-        uncheckedDecoration,
-      ))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
-        'checkedKnobDecoration',
-        checkedKnobDecoration,
-      ))
-      ..add(ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
-        'uncheckedKnobDecoration',
-        uncheckedKnobDecoration,
-      ))
+      ..add(
+        DiagnosticsProperty<Duration?>('animationDuration', animationDuration),
+      )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
+          'checkedDecoration',
+          checkedDecoration,
+        ),
+      )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
+          'uncheckedDecoration',
+          uncheckedDecoration,
+        ),
+      )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
+          'checkedKnobDecoration',
+          checkedKnobDecoration,
+        ),
+      )
+      ..add(
+        ObjectFlagProperty<WidgetStateProperty<Decoration?>?>.has(
+          'uncheckedKnobDecoration',
+          uncheckedKnobDecoration,
+        ),
+      )
       ..add(DiagnosticsProperty('foregroundColor', foregroundColor));
   }
 }
